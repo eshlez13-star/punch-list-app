@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { storage } from "../lib/storage";
 import { createEmptyItem } from "../lib/constants";
-import { generateExcel, shareExcel, buildExcelBlob } from "../lib/excelGenerator";
+import { generateExcel, buildExcelBlob } from "../lib/excelGenerator";
 import { compressImage } from "../lib/imageCompressor";
 import ItemForm from "./ItemForm";
 import {
@@ -19,7 +19,6 @@ export default function ReportCreator() {
   const [loaded, setLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState(""); // "" | "saving" | "saved"
   const [generating, setGenerating] = useState(false);
-  const [sharing, setSharing] = useState(false);
   const dirty = useRef(false);
   const cameraInputRef = useRef(null);
   const excelBlobRef = useRef(null);
@@ -167,22 +166,25 @@ export default function ReportCreator() {
     e.target.value = "";
   }
 
-  async function handleShare() {
+  function handleShare() {
     const hasContent = items.some((it) => it.structure);
     if (!hasContent) {
       alert("יש למלא לפחות פריט אחד עם מבנה.");
       return;
     }
-
-    const prebuilt = excelBlobRef.current;
-    if (prebuilt) {
-      // blob מוכן — קריאה מיידית ללא await לשימור user activation בנייד
-      shareExcel({ id, name: reportName, items, createdAt: new Date().toISOString() }, prebuilt);
-      return;
+    const ready = excelBlobRef.current;
+    if (ready && navigator.canShare) {
+      const file = new File([ready.blob], ready.filename, { type: ready.blob.type });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: reportName })
+          .catch((err) => { if (err.name !== "AbortError") fallbackDownload(); });
+        return;
+      }
     }
+    fallbackDownload();
+  }
 
-    // אין blob מוכן — נסה לבנות (בנייד כנראה יוריד; במחשב — תמיד מוריד)
-    setSharing(true);
+  async function fallbackDownload() {
     try {
       const existing = await storage.getReport(id);
       const reportData = {
@@ -191,11 +193,9 @@ export default function ReportCreator() {
         items,
         createdAt: existing?.createdAt || new Date().toISOString(),
       };
-      await shareExcel(reportData, null);
+      await generateExcel(reportData);
     } catch (e) {
-      alert("שגיאה בשיתוף הדוח: " + e.message);
-    } finally {
-      setSharing(false);
+      alert("שגיאה בהורדת הדוח: " + e.message);
     }
   }
 
@@ -347,16 +347,11 @@ export default function ReportCreator() {
 
           <button
             onClick={handleShare}
-            disabled={sharing}
             className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-navy-700
-                       text-navy-700 font-medium disabled:opacity-50 active:scale-[0.98]
+                       text-navy-700 font-medium active:scale-[0.98]
                        transition-all shrink-0 hover:bg-navy-50"
           >
-            {sharing ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Share2 size={18} />
-            )}
+            <Share2 size={18} />
             שתף
           </button>
         </div>
