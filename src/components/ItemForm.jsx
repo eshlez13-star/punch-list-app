@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { STRUCTURES, RESPONSIBILITIES } from "../lib/constants";
+import { STRUCTURES, RESPONSIBILITIES, DEFECT_TEMPLATES } from "../lib/constants";
 import { compressImage } from "../lib/imageCompressor";
 import { Camera, FolderOpen, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
 import CanvasMarkup from "./CanvasMarkup";
@@ -254,6 +254,17 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
 
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">פירוט הבעיה</label>
+              <div className="flex gap-1.5 flex-wrap mb-2">
+                {DEFECT_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl}
+                    onClick={() => update("description", item.description ? `${item.description}, ${tpl}` : tpl)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors bg-white text-gray-600 border-gray-300 hover:border-navy-600 hover:text-navy-700"
+                  >
+                    {tpl}
+                  </button>
+                ))}
+              </div>
               <textarea
                 value={item.description}
                 onChange={(e) => update("description", e.target.value)}

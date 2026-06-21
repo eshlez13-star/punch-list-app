@@ -14,6 +14,18 @@ export const RESPONSIBILITIES = [
   { value: "sub_contractor", label: "קבלן משנה" },
 ];
 
+export const DEFECT_TEMPLATES = [
+  "סדק",
+  "רטיבות / נזילה",
+  "גימור לקוי",
+  "חוסר איטום",
+  "חוסר התאמה לתוכנית",
+  "אביזר חסר / פגום",
+  "ניקוז לקוי",
+  "צביעה לקויה",
+  "חיבור / קיבוע לקוי",
+];
+
 export const RESP_LABELS = {
   project_manager: "מנהל פרויקט",
   contractor: "קבלן ראשי",

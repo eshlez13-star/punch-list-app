@@ -3,9 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { storage } from "../lib/storage";
 import { createEmptyItem } from "../lib/constants";
 import { generateExcel } from "../lib/excelGenerator";
+import { compressImage } from "../lib/imageCompressor";
 import ItemForm from "./ItemForm";
 import {
-  ArrowRight, Plus, FileSpreadsheet, Loader2, Save, CheckCircle2,
+  ArrowRight, Plus, FileSpreadsheet, Loader2, Save, CheckCircle2, Camera,
 } from "lucide-react";
 
 const SAVE_INTERVAL = 5000;
@@ -19,6 +20,7 @@ export default function ReportCreator() {
   const [saveStatus, setSaveStatus] = useState(""); // "" | "saving" | "saved"
   const [generating, setGenerating] = useState(false);
   const dirty = useRef(false);
+  const cameraInputRef = useRef(null);
 
   // === טעינה ===
   useEffect(() => {
@@ -95,8 +97,47 @@ export default function ReportCreator() {
   }
 
   function addItem() {
-    setItems((prev) => [...prev, createEmptyItem()]);
+    setItems((prev) => {
+      const last = prev[prev.length - 1];
+      const inherited = {
+        structure: last?.structure || "",
+        room: last?.room || "",
+      };
+      return [...prev, { ...createEmptyItem(), ...inherited }];
+    });
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }), 100);
+  }
+
+  async function handleCameraCapture(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const compressed = await compressImage(ev.target.result);
+
+      setItems((prev) => {
+        const last = prev[prev.length - 1];
+        const isEmpty = !last?.image_original && !last?.description;
+
+        if (isEmpty) {
+          return prev.map((it, i) =>
+            i === prev.length - 1 ? { ...it, image_original: compressed } : it
+          );
+        } else {
+          const inherited = {
+            structure: last?.structure || "",
+            room: last?.room || "",
+          };
+          return [...prev, { ...createEmptyItem(), ...inherited, image_original: compressed }];
+        }
+      });
+
+      setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }), 100);
+    };
+    reader.readAsDataURL(file);
+
+    e.target.value = "";
   }
 
   // === יצירת Excel - עצמאי לחלוטין מהשמירה ===
@@ -185,16 +226,35 @@ export default function ReportCreator() {
         ))}
       </div>
 
-      {/* הוסף */}
-      <button
-        onClick={addItem}
-        className="w-full mt-4 border-2 border-dashed border-gray-300 rounded-2xl py-4
-                   flex items-center justify-center gap-2 text-gray-400 font-medium
-                   hover:border-navy-600 hover:text-navy-600 transition-colors active:bg-gray-50"
-      >
-        <Plus size={20} />
-        הוסף ליקוי
-      </button>
+      {/* הוסף + צלם */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleCameraCapture}
+      />
+      <div className="mt-4 flex gap-3">
+        <button
+          onClick={() => cameraInputRef.current?.click()}
+          className="flex-1 border-2 border-dashed border-blue-300 rounded-2xl py-4
+                     flex items-center justify-center gap-2 text-blue-500 font-medium
+                     hover:border-blue-500 hover:text-blue-600 transition-colors active:bg-blue-50"
+        >
+          <Camera size={20} />
+          צלם ליקוי
+        </button>
+        <button
+          onClick={addItem}
+          className="flex-1 border-2 border-dashed border-gray-300 rounded-2xl py-4
+                     flex items-center justify-center gap-2 text-gray-400 font-medium
+                     hover:border-navy-600 hover:text-navy-600 transition-colors active:bg-gray-50"
+        >
+          <Plus size={20} />
+          הוסף ליקוי
+        </button>
+      </div>
 
       {/* סרגל תחתון */}
       <div className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3 z-40">
