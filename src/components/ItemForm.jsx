@@ -1,22 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { STRUCTURES, RESPONSIBILITIES, DEFECT_TEMPLATES } from "../lib/constants";
 import { compressImage } from "../lib/imageCompressor";
-import { Camera, FolderOpen, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
+import { Camera, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
 import CanvasMarkup from "./CanvasMarkup";
 
 export default function ItemForm({ item, index, onChange, onRemove }) {
   const [showMarkup, setShowMarkup] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-
-  useEffect(() => {
-    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
-  }, []);
 
   const fileCamRef = useRef(null);
-  const fileGalleryRef = useRef(null);
   const fileAfterCamRef = useRef(null);
-  const fileAfterGalleryRef = useRef(null);
 
   function update(field, value) {
     onChange(index, { ...item, [field]: value });
@@ -67,44 +60,20 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
   const displayImage = item.image_marked || item.image_original;
   const subtitle = item.structure ? item.structure.split(" - ")[1] : "";
 
-  // כפתורי העלאה - iOS: כפתור אחד, Android: שניים
-  function ImagePicker({ onCamClick, onGalleryClick, blue }) {
+  function ImagePicker({ onCamClick, blue }) {
     const base = blue
       ? "border-blue-200 text-blue-300 hover:border-blue-400 hover:text-blue-400 active:bg-blue-50"
       : "border-gray-300 text-gray-400 hover:border-navy-600 hover:text-navy-600 active:bg-gray-50";
 
-    if (isIOS) {
-      return (
-        <button
-          onClick={onCamClick}
-          className={`w-full border-2 border-dashed rounded-xl py-7
-                      flex flex-col items-center gap-2 transition-colors ${base}`}
-        >
-          <Camera size={26} />
-          <span className="text-sm font-medium">צלם או בחר תמונה</span>
-        </button>
-      );
-    }
-
     return (
-      <div className="flex gap-2">
-        <button
-          onClick={onCamClick}
-          className={`flex-1 border-2 border-dashed rounded-xl py-6
-                      flex flex-col items-center gap-1.5 transition-colors ${base}`}
-        >
-          <Camera size={24} />
-          <span className="text-xs font-medium">צלם</span>
-        </button>
-        <button
-          onClick={onGalleryClick}
-          className={`flex-1 border-2 border-dashed rounded-xl py-6
-                      flex flex-col items-center gap-1.5 transition-colors ${base}`}
-        >
-          <FolderOpen size={24} />
-          <span className="text-xs font-medium">גלריה</span>
-        </button>
-      </div>
+      <button
+        onClick={onCamClick}
+        className={`w-full border-2 border-dashed rounded-xl py-7
+                    flex flex-col items-center gap-2 transition-colors ${base}`}
+      >
+        <Camera size={26} />
+        <span className="text-sm font-medium">צלם או בחר תמונה</span>
+      </button>
     );
   }
 
@@ -204,13 +173,10 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
               ) : (
                 <ImagePicker
                   onCamClick={() => fileCamRef.current?.click()}
-                  onGalleryClick={() => fileGalleryRef.current?.click()}
                   blue={false}
                 />
               )}
-              {/* iOS: accept בלי capture | Android: capture="environment" */}
-              <input ref={fileCamRef} type="file" accept="image/*" {...(!isIOS && { capture: "environment" })} onChange={handleImage} className="hidden" />
-              <input ref={fileGalleryRef} type="file" accept="image/*" onChange={handleImage} className="hidden" />
+              <input ref={fileCamRef} type="file" accept="image/*" onChange={handleImage} className="hidden" />
             </div>
 
             {/* תמונה לאחר תיקון */}
@@ -244,12 +210,10 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
               ) : (
                 <ImagePicker
                   onCamClick={() => fileAfterCamRef.current?.click()}
-                  onGalleryClick={() => fileAfterGalleryRef.current?.click()}
                   blue={true}
                 />
               )}
-              <input ref={fileAfterCamRef} type="file" accept="image/*" {...(!isIOS && { capture: "environment" })} onChange={handleImageAfterFix} className="hidden" />
-              <input ref={fileAfterGalleryRef} type="file" accept="image/*" onChange={handleImageAfterFix} className="hidden" />
+              <input ref={fileAfterCamRef} type="file" accept="image/*" onChange={handleImageAfterFix} className="hidden" />
             </div>
 
             <div>
