@@ -6,7 +6,7 @@ import { RESP_LABELS } from "./constants";
  * רץ לגמרי בדפדפן - בלי שרת.
  * מקבל את נתוני הדוח ישירות (אין תלות בשמירה לפני יצירה).
  */
-export async function buildExcelBlob(report) {
+async function buildExcelBlob(report) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Spivak Engineering";
 

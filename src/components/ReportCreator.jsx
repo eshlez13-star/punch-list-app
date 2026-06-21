@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { storage } from "../lib/storage";
 import { createEmptyItem } from "../lib/constants";
-import { generateExcel, buildExcelBlob } from "../lib/excelGenerator";
+import { generateExcel } from "../lib/excelGenerator";
 import { compressImage } from "../lib/imageCompressor";
 import ItemForm from "./ItemForm";
 import {
-  ArrowRight, Plus, FileSpreadsheet, Loader2, Save, CheckCircle2, Camera, Share2,
+  ArrowRight, Plus, FileSpreadsheet, Loader2, Save, CheckCircle2, Camera,
 } from "lucide-react";
 
 const SAVE_INTERVAL = 5000;
@@ -21,7 +21,6 @@ export default function ReportCreator() {
   const [generating, setGenerating] = useState(false);
   const dirty = useRef(false);
   const cameraInputRef = useRef(null);
-  const excelBlobRef = useRef(null);
 
   // === טעינה ===
   useEffect(() => {
@@ -42,31 +41,6 @@ export default function ReportCreator() {
   useEffect(() => {
     if (loaded) dirty.current = true;
   }, [items, reportName, loaded]);
-
-  // === בניית Excel ברקע (debounced) לשיתוף מיידי ===
-  useEffect(() => {
-    if (!loaded) return;
-    const hasContent = items.some((it) => it.structure);
-    if (!hasContent) {
-      excelBlobRef.current = null;
-      return;
-    }
-    const timer = setTimeout(async () => {
-      try {
-        const existing = await storage.getReport(id);
-        const reportData = {
-          id,
-          name: reportName,
-          items,
-          createdAt: existing?.createdAt || new Date().toISOString(),
-        };
-        excelBlobRef.current = await buildExcelBlob(reportData);
-      } catch {
-        excelBlobRef.current = null;
-      }
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [items, reportName, loaded, id]);
 
   // === שמירה (מחזיר promise כדי לאפשר המתנה) ===
   const save = useCallback(async () => {
@@ -164,72 +138,6 @@ export default function ReportCreator() {
     reader.readAsDataURL(file);
 
     e.target.value = "";
-  }
-
-  async function handleShare() {
-    const hasContent = items.some((it) => it.structure);
-    if (!hasContent) {
-      alert("יש למלא לפחות פריט אחד עם מבנה.");
-      return;
-    }
-
-    const diag = [];
-    let ready = excelBlobRef.current;
-    diag.push(ready ? "1. blob מוכן ✓" : "1. blob ריק — בונה עכשיו");
-
-    // אם ה-blob טרם נבנה (ה-debounce עדיין לא רץ) — בונים סינכרונית כדי לא ליפול להורדה סתם
-    if (!ready) {
-      try {
-        const existing = await storage.getReport(id);
-        ready = await buildExcelBlob({
-          id,
-          name: reportName,
-          items,
-          createdAt: existing?.createdAt || new Date().toISOString(),
-        });
-        excelBlobRef.current = ready;
-        diag.push("   בנייה הצליחה ✓");
-      } catch {
-        diag.push("   בנייה נכשלה ✗");
-      }
-    }
-
-    let file = null;
-    let canShareFiles = false;
-    if (ready) {
-      file = new File([ready.blob], ready.filename, { type: ready.blob.type });
-      canShareFiles =
-        typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
-    }
-    diag.push("2. canShare(files): " + (canShareFiles ? "true ✓" : "false ✗"));
-
-    if (canShareFiles) {
-      try {
-        await navigator.share({ files: [file], title: reportName });
-        return; // שיתוף הצליח
-      } catch (err) {
-        if (err.name === "AbortError") return; // המשתמש ביטל — לא נופלים להורדה
-        diag.push("3. share נזרק: " + err.name);
-      }
-    }
-
-    alert("אבחון שיתוף:\n" + diag.join("\n"));
-    fallbackDownload();
-  }
-
-  async function fallbackDownload() {
-    try {
-      const existing = await storage.getReport(id);
-      const reportData = {
-        id,
-        name: reportName,
-        items,
-        createdAt: existing?.createdAt || new Date().toISOString(),
-      };
-      await generateExcel(reportData);
-    } catch (e) {
-      alert("שגיאה בהורדת הדוח: " + e.message);
-    }
   }
 
   // === יצירת Excel - עצמאי לחלוטין מהשמירה ===
@@ -378,15 +286,6 @@ export default function ReportCreator() {
             )}
           </button>
 
-          <button
-            onClick={handleShare}
-            className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-navy-700
-                       text-navy-700 font-medium active:scale-[0.98]
-                       transition-all shrink-0 hover:bg-navy-50"
-          >
-            <Share2 size={18} />
-            שתף
-          </button>
         </div>
       </div>
     </div>
