@@ -189,13 +189,20 @@ export async function shareExcel(report, prebuilt = null) {
   if (prebuilt) {
     const { blob, filename } = prebuilt;
     const file = new File([blob], filename, { type: MIME });
-    if (navigator.canShare?.({ files: [file] })) {
+    const shareSupported = !!navigator.share;
+    const canShareFiles = shareSupported && !!navigator.canShare?.({ files: [file] });
+    if (shareSupported && canShareFiles) {
       try {
         await navigator.share({ files: [file], title: report.name });
         return;
       } catch (err) {
         if (err.name === "AbortError") return;
+        // TEMP DIAG
+        alert(`שיתוף נכשל: ${err.name} - ${err.message}`);
       }
+    } else {
+      // TEMP DIAG
+      alert(`שיתוף לא נתמך. share=${shareSupported} canShareFiles=${canShareFiles} prebuilt=true`);
     }
     downloadBlob(blob, filename);
     return;
@@ -203,13 +210,20 @@ export async function shareExcel(report, prebuilt = null) {
 
   const { blob, filename } = await buildExcelBlob(report);
   const file = new File([blob], filename, { type: MIME });
-  if (navigator.canShare?.({ files: [file] })) {
+  const shareSupported = !!navigator.share;
+  const canShareFiles = shareSupported && !!navigator.canShare?.({ files: [file] });
+  if (shareSupported && canShareFiles) {
     try {
       await navigator.share({ files: [file], title: report.name });
       return;
     } catch (err) {
       if (err.name === "AbortError") return;
+      // TEMP DIAG
+      alert(`שיתוף נכשל: ${err.name} - ${err.message}`);
     }
+  } else {
+    // TEMP DIAG
+    alert(`שיתוף לא נתמך. share=${shareSupported} canShareFiles=${canShareFiles} prebuilt=false`);
   }
   downloadBlob(blob, filename);
 }
