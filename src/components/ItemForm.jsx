@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { STRUCTURES, RESPONSIBILITIES, DEFECT_TEMPLATES } from "../lib/constants";
 import { compressImage } from "../lib/imageCompressor";
-import { Camera, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
+import { Camera, FolderOpen, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
 import CanvasMarkup from "./CanvasMarkup";
 
 export default function ItemForm({ item, index, onChange, onRemove }) {
@@ -9,7 +9,9 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
   const [collapsed, setCollapsed] = useState(false);
 
   const fileCamRef = useRef(null);
+  const fileGalleryRef = useRef(null);
   const fileAfterCamRef = useRef(null);
+  const fileAfterGalleryRef = useRef(null);
 
   function update(field, value) {
     onChange(index, { ...item, [field]: value });
@@ -60,20 +62,39 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
   const displayImage = item.image_marked || item.image_original;
   const subtitle = item.structure ? item.structure.split(" - ")[1] : "";
 
-  function ImagePicker({ onCamClick, blue }) {
+  function ImagePicker({ onCamClick, onGalleryClick, blue }) {
     const base = blue
       ? "border-blue-200 text-blue-300 hover:border-blue-400 hover:text-blue-400 active:bg-blue-50"
       : "border-gray-300 text-gray-400 hover:border-navy-600 hover:text-navy-600 active:bg-gray-50";
-
     return (
-      <button
-        onClick={onCamClick}
-        className={`w-full border-2 border-dashed rounded-xl py-7
-                    flex flex-col items-center gap-2 transition-colors ${base}`}
-      >
-        <Camera size={26} />
-        <span className="text-sm font-medium">צלם או בחר תמונה</span>
-      </button>
+      <details className="group">
+        <summary
+          className={`list-none [&::-webkit-details-marker]:hidden cursor-pointer w-full
+                      border-2 border-dashed rounded-xl py-7 flex flex-col items-center gap-2
+                      transition-colors ${base}`}
+        >
+          <Camera size={26} />
+          <span className="text-sm font-medium">צלם או בחר תמונה</span>
+        </summary>
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={onCamClick}
+            className={`flex-1 border-2 border-dashed rounded-xl py-4
+                        flex flex-col items-center gap-1.5 transition-colors ${base}`}
+          >
+            <Camera size={22} />
+            <span className="text-xs font-medium">צלם</span>
+          </button>
+          <button
+            onClick={onGalleryClick}
+            className={`flex-1 border-2 border-dashed rounded-xl py-4
+                        flex flex-col items-center gap-1.5 transition-colors ${base}`}
+          >
+            <FolderOpen size={22} />
+            <span className="text-xs font-medium">גלריה</span>
+          </button>
+        </div>
+      </details>
     );
   }
 
@@ -173,10 +194,12 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
               ) : (
                 <ImagePicker
                   onCamClick={() => fileCamRef.current?.click()}
+                  onGalleryClick={() => fileGalleryRef.current?.click()}
                   blue={false}
                 />
               )}
-              <input ref={fileCamRef} type="file" accept="image/*" onChange={handleImage} className="hidden" />
+              <input ref={fileCamRef} type="file" accept="image/*" capture="environment" onChange={handleImage} className="hidden" />
+              <input ref={fileGalleryRef} type="file" accept="image/*" onChange={handleImage} className="hidden" />
             </div>
 
             {/* תמונה לאחר תיקון */}
@@ -210,10 +233,12 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
               ) : (
                 <ImagePicker
                   onCamClick={() => fileAfterCamRef.current?.click()}
+                  onGalleryClick={() => fileAfterGalleryRef.current?.click()}
                   blue={true}
                 />
               )}
-              <input ref={fileAfterCamRef} type="file" accept="image/*" onChange={handleImageAfterFix} className="hidden" />
+              <input ref={fileAfterCamRef} type="file" accept="image/*" capture="environment" onChange={handleImageAfterFix} className="hidden" />
+              <input ref={fileAfterGalleryRef} type="file" accept="image/*" onChange={handleImageAfterFix} className="hidden" />
             </div>
 
             <div>
