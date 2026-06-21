@@ -1,14 +1,16 @@
 import { useState, useRef } from "react";
 import { STRUCTURES, RESPONSIBILITIES } from "../lib/constants";
 import { compressImage } from "../lib/imageCompressor";
-import { Camera, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
+import { Camera, FolderOpen, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
 import CanvasMarkup from "./CanvasMarkup";
 
 export default function ItemForm({ item, index, onChange, onRemove }) {
   const [showMarkup, setShowMarkup] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const fileRef = useRef(null);
-  const fileAfterRef = useRef(null);
+  const fileCamRef = useRef(null);
+  const fileGalleryRef = useRef(null);
+  const fileAfterCamRef = useRef(null);
+  const fileAfterGalleryRef = useRef(null);
 
   function update(field, value) {
     onChange(index, { ...item, [field]: value });
@@ -153,24 +155,29 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="w-full border-2 border-dashed border-gray-300 rounded-xl py-8
-                             flex flex-col items-center gap-2 text-gray-400
-                             hover:border-navy-600 hover:text-navy-600 transition-colors active:bg-gray-50"
-                >
-                  <Camera size={28} />
-                  <span className="text-sm">צלם או העלה תמונה</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => fileCamRef.current?.click()}
+                    className="flex-1 border-2 border-dashed border-gray-300 rounded-xl py-6
+                               flex flex-col items-center gap-1.5 text-gray-400
+                               hover:border-navy-600 hover:text-navy-600 transition-colors active:bg-gray-50"
+                  >
+                    <Camera size={24} />
+                    <span className="text-xs font-medium">צלם</span>
+                  </button>
+                  <button
+                    onClick={() => fileGalleryRef.current?.click()}
+                    className="flex-1 border-2 border-dashed border-gray-300 rounded-xl py-6
+                               flex flex-col items-center gap-1.5 text-gray-400
+                               hover:border-navy-600 hover:text-navy-600 transition-colors active:bg-gray-50"
+                  >
+                    <FolderOpen size={24} />
+                    <span className="text-xs font-medium">גלריה</span>
+                  </button>
+                </div>
               )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleImage}
-                className="hidden"
-              />
+              <input ref={fileCamRef} type="file" accept="image/*" capture="environment" onChange={handleImage} className="hidden" />
+              <input ref={fileGalleryRef} type="file" accept="image/*" onChange={handleImage} className="hidden" />
             </div>
 
             {/* תמונה אחרי תיקון */}
@@ -202,24 +209,29 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => fileAfterRef.current?.click()}
-                  className="w-full border-2 border-dashed border-blue-200 rounded-xl py-6
-                             flex flex-col items-center gap-2 text-blue-300
-                             hover:border-blue-400 hover:text-blue-400 transition-colors active:bg-blue-50"
-                >
-                  <Camera size={24} />
-                  <span className="text-sm">צלם לאחר ביצוע תיקון</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => fileAfterCamRef.current?.click()}
+                    className="flex-1 border-2 border-dashed border-blue-200 rounded-xl py-6
+                               flex flex-col items-center gap-1.5 text-blue-300
+                               hover:border-blue-400 hover:text-blue-400 transition-colors active:bg-blue-50"
+                  >
+                    <Camera size={24} />
+                    <span className="text-xs font-medium">צלם</span>
+                  </button>
+                  <button
+                    onClick={() => fileAfterGalleryRef.current?.click()}
+                    className="flex-1 border-2 border-dashed border-blue-200 rounded-xl py-6
+                               flex flex-col items-center gap-1.5 text-blue-300
+                               hover:border-blue-400 hover:text-blue-400 transition-colors active:bg-blue-50"
+                  >
+                    <FolderOpen size={24} />
+                    <span className="text-xs font-medium">גלריה</span>
+                  </button>
+                </div>
               )}
-              <input
-                ref={fileAfterRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleImageAfterFix}
-                className="hidden"
-              />
+              <input ref={fileAfterCamRef} type="file" accept="image/*" capture="environment" onChange={handleImageAfterFix} className="hidden" />
+              <input ref={fileAfterGalleryRef} type="file" accept="image/*" onChange={handleImageAfterFix} className="hidden" />
             </div>
 
             <div>
