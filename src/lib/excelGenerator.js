@@ -183,11 +183,26 @@ export async function generateExcel(report) {
   downloadBlob(blob, filename);
 }
 
-export async function shareExcel(report) {
-  const { blob, filename } = await buildExcelBlob(report);
+export async function shareExcel(report, prebuilt = null) {
   const MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-  const file = new File([blob], filename, { type: MIME });
 
+  if (prebuilt) {
+    const { blob, filename } = prebuilt;
+    const file = new File([blob], filename, { type: MIME });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: report.name });
+        return;
+      } catch (err) {
+        if (err.name === "AbortError") return;
+      }
+    }
+    downloadBlob(blob, filename);
+    return;
+  }
+
+  const { blob, filename } = await buildExcelBlob(report);
+  const file = new File([blob], filename, { type: MIME });
   if (navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: report.name });
@@ -196,6 +211,5 @@ export async function shareExcel(report) {
       if (err.name === "AbortError") return;
     }
   }
-
   downloadBlob(blob, filename);
 }

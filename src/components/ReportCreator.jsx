@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { storage } from "../lib/storage";
 import { createEmptyItem } from "../lib/constants";
-import { generateExcel, shareExcel } from "../lib/excelGenerator";
+import { generateExcel, shareExcel, buildExcelBlob } from "../lib/excelGenerator";
 import { compressImage } from "../lib/imageCompressor";
 import ItemForm from "./ItemForm";
 import {
@@ -22,6 +22,7 @@ export default function ReportCreator() {
   const [sharing, setSharing] = useState(false);
   const dirty = useRef(false);
   const cameraInputRef = useRef(null);
+  const excelBlobRef = useRef(null);
 
   // === טעינה ===
   useEffect(() => {
@@ -42,6 +43,31 @@ export default function ReportCreator() {
   useEffect(() => {
     if (loaded) dirty.current = true;
   }, [items, reportName, loaded]);
+
+  // === בניית Excel ברקע (debounced) לשיתוף מיידי ===
+  useEffect(() => {
+    if (!loaded) return;
+    const hasContent = items.some((it) => it.structure);
+    if (!hasContent) {
+      excelBlobRef.current = null;
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const existing = await storage.getReport(id);
+        const reportData = {
+          id,
+          name: reportName,
+          items,
+          createdAt: existing?.createdAt || new Date().toISOString(),
+        };
+        excelBlobRef.current = await buildExcelBlob(reportData);
+      } catch {
+        excelBlobRef.current = null;
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [items, reportName, loaded, id]);
 
   // === שמירה (מחזיר promise כדי לאפשר המתנה) ===
   const save = useCallback(async () => {
@@ -147,6 +173,15 @@ export default function ReportCreator() {
       alert("יש למלא לפחות פריט אחד עם מבנה.");
       return;
     }
+
+    const prebuilt = excelBlobRef.current;
+    if (prebuilt) {
+      // blob מוכן — קריאה מיידית ללא await לשימור user activation בנייד
+      shareExcel({ id, name: reportName, items, createdAt: new Date().toISOString() }, prebuilt);
+      return;
+    }
+
+    // אין blob מוכן — נסה לבנות (בנייד כנראה יוריד; במחשב — תמיד מוריד)
     setSharing(true);
     try {
       const existing = await storage.getReport(id);
@@ -156,7 +191,7 @@ export default function ReportCreator() {
         items,
         createdAt: existing?.createdAt || new Date().toISOString(),
       };
-      await shareExcel(reportData);
+      await shareExcel(reportData, null);
     } catch (e) {
       alert("שגיאה בשיתוף הדוח: " + e.message);
     } finally {
