@@ -6,7 +6,7 @@ import { RESP_LABELS } from "./constants";
  * רץ לגמרי בדפדפן - בלי שרת.
  * מקבל את נתוני הדוח ישירות (אין תלות בשמירה לפני יצירה).
  */
-export async function generateExcel(report) {
+export async function buildExcelBlob(report) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Spivak Engineering";
 
@@ -87,8 +87,6 @@ export async function generateExcel(report) {
     row.getCell(2).value = item.structure || "";
     row.getCell(3).value = item.room || "";
     row.getCell(4).value = item.section !== "" ? Number(item.section) : "";
-    // עמודה 5 (תמונת ליקוי) - מטופלת למטה
-    // עמודה 6 (לאחר תיקון) - מטופלת למטה
     row.getCell(7).value = item.description || "";
     row.getCell(8).value = RESP_LABELS[item.responsibility] || item.responsibility || "";
 
@@ -158,7 +156,6 @@ export async function generateExcel(report) {
   summaryRow.getCell(1).value = `סה"כ ליקויים: ${items.length}`;
   summaryRow.getCell(1).font = { bold: true, size: 11 };
 
-  // === הורדת הקובץ ===
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -167,6 +164,10 @@ export async function generateExcel(report) {
   const safeName = report.name.replace(/[/\\?%*:|"<>]/g, "-").slice(0, 50);
   const filename = `${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
+  return { blob, filename };
+}
+
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -175,4 +176,26 @@ export async function generateExcel(report) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+export async function generateExcel(report) {
+  const { blob, filename } = await buildExcelBlob(report);
+  downloadBlob(blob, filename);
+}
+
+export async function shareExcel(report) {
+  const { blob, filename } = await buildExcelBlob(report);
+  const MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const file = new File([blob], filename, { type: MIME });
+
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: report.name });
+      return;
+    } catch (err) {
+      if (err.name === "AbortError") return;
+    }
+  }
+
+  downloadBlob(blob, filename);
 }

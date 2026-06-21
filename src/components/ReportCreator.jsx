@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { storage } from "../lib/storage";
 import { createEmptyItem } from "../lib/constants";
-import { generateExcel } from "../lib/excelGenerator";
+import { generateExcel, shareExcel } from "../lib/excelGenerator";
 import { compressImage } from "../lib/imageCompressor";
 import ItemForm from "./ItemForm";
 import {
-  ArrowRight, Plus, FileSpreadsheet, Loader2, Save, CheckCircle2, Camera,
+  ArrowRight, Plus, FileSpreadsheet, Loader2, Save, CheckCircle2, Camera, Share2,
 } from "lucide-react";
 
 const SAVE_INTERVAL = 5000;
@@ -19,6 +19,7 @@ export default function ReportCreator() {
   const [loaded, setLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState(""); // "" | "saving" | "saved"
   const [generating, setGenerating] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const dirty = useRef(false);
   const cameraInputRef = useRef(null);
 
@@ -140,6 +141,29 @@ export default function ReportCreator() {
     e.target.value = "";
   }
 
+  async function handleShare() {
+    const hasContent = items.some((it) => it.structure);
+    if (!hasContent) {
+      alert("יש למלא לפחות פריט אחד עם מבנה.");
+      return;
+    }
+    setSharing(true);
+    try {
+      const existing = await storage.getReport(id);
+      const reportData = {
+        id,
+        name: reportName,
+        items,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+      };
+      await shareExcel(reportData);
+    } catch (e) {
+      alert("שגיאה בשיתוף הדוח: " + e.message);
+    } finally {
+      setSharing(false);
+    }
+  }
+
   // === יצירת Excel - עצמאי לחלוטין מהשמירה ===
   // משתמש בנתוני ה-state הנוכחיים ישירות, בלי תלות ב-storage
   async function handleGenerate() {
@@ -258,11 +282,11 @@ export default function ReportCreator() {
 
       {/* סרגל תחתון */}
       <div className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3 z-40">
-        <div className="max-w-2xl mx-auto flex gap-3">
+        <div className="max-w-2xl mx-auto flex gap-2">
           <button
             onClick={save}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl border border-gray-300
-                       text-gray-600 font-medium active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-gray-300
+                       text-gray-600 font-medium active:scale-[0.98] transition-all shrink-0"
           >
             {saveStatus === "saved" ? (
               <CheckCircle2 size={18} className="text-green-600" />
@@ -275,15 +299,30 @@ export default function ReportCreator() {
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="flex-1 flex items-center justify-center gap-2 bg-navy-700 hover:bg-navy-800
+            className="flex-1 flex items-center justify-center gap-1.5 bg-navy-700 hover:bg-navy-800
                        text-white py-3 rounded-xl font-medium disabled:opacity-50
-                       active:scale-[0.98] transition-all"
+                       active:scale-[0.98] transition-all min-w-0"
           >
             {generating ? (
               <><Loader2 size={18} className="animate-spin" /> מייצר...</>
             ) : (
-              <><FileSpreadsheet size={18} /> צור דוח Excel</>
+              <><FileSpreadsheet size={18} /><span className="truncate">צור דוח Excel</span></>
             )}
+          </button>
+
+          <button
+            onClick={handleShare}
+            disabled={sharing}
+            className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-navy-700
+                       text-navy-700 font-medium disabled:opacity-50 active:scale-[0.98]
+                       transition-all shrink-0 hover:bg-navy-50"
+          >
+            {sharing ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Share2 size={18} />
+            )}
+            שתף
           </button>
         </div>
       </div>
