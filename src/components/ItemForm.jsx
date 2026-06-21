@@ -4,6 +4,12 @@ import { compressImage } from "../lib/imageCompressor";
 import { Camera, FolderOpen, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
 import CanvasMarkup from "./CanvasMarkup";
 
+// iOS מציג action sheet משלו עם אפשרות מצלמה — capture="environment" מיותר ואף עלול לבלבל
+// Android: capture="environment" פותח ישירות את המצלמה האחורית
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const cameraCapture = isIOS ? undefined : "environment";
+
 export default function ItemForm({ item, index, onChange, onRemove }) {
   const [showMarkup, setShowMarkup] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -176,7 +182,7 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
                   </button>
                 </div>
               )}
-              <input ref={fileCamRef} type="file" accept="image/*" capture="environment" onChange={handleImage} className="hidden" />
+              <input ref={fileCamRef} type="file" accept="image/*" capture={cameraCapture} onChange={handleImage} className="hidden" />
               <input ref={fileGalleryRef} type="file" accept="image/*" onChange={handleImage} className="hidden" />
             </div>
 
@@ -230,7 +236,7 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
                   </button>
                 </div>
               )}
-              <input ref={fileAfterCamRef} type="file" accept="image/*" capture="environment" onChange={handleImageAfterFix} className="hidden" />
+              <input ref={fileAfterCamRef} type="file" accept="image/*" capture={cameraCapture} onChange={handleImageAfterFix} className="hidden" />
               <input ref={fileAfterGalleryRef} type="file" accept="image/*" onChange={handleImageAfterFix} className="hidden" />
             </div>
 
