@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { STRUCTURES, RESPONSIBILITIES } from "../lib/constants";
+import { compressImage } from "../lib/imageCompressor";
 import { Camera, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
 import CanvasMarkup from "./CanvasMarkup";
 
@@ -21,8 +22,9 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      updateMany({ image_original: ev.target.result, image_marked: null });
+    reader.onload = async (ev) => {
+      const compressed = await compressImage(ev.target.result);
+      updateMany({ image_original: compressed, image_marked: null });
       setShowMarkup(true);
     };
     reader.readAsDataURL(file);
@@ -33,8 +35,9 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      update("image_after_fix", ev.target.result);
+    reader.onload = async (ev) => {
+      const compressed = await compressImage(ev.target.result);
+      update("image_after_fix", compressed);
     };
     reader.readAsDataURL(file);
     e.target.value = "";

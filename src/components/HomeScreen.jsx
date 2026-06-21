@@ -1,13 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { storage } from "../lib/storage";
-import { Plus, Download, Pencil, Trash2, FileSpreadsheet, HardHat } from "lucide-react";
+import { readExcel } from "../lib/excelReader";
+import { Plus, Download, Pencil, Trash2, FileSpreadsheet, HardHat, Upload, Loader2 } from "lucide-react";
 import { generateExcel } from "../lib/excelGenerator";
 
 export default function HomeScreen() {
   const [reports, setReports] = useState([]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+  const importRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,6 +37,25 @@ export default function HomeScreen() {
     await generateExcel(report);
   }
 
+  async function handleImport(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    setImporting(true);
+    setImportError("");
+
+    try {
+      const { name, items } = await readExcel(file);
+      const importedName = `מתוקן - ${name}`;
+      const id = storage.importReport(importedName, items);
+      navigate(`/report/${id}`);
+    } catch (err) {
+      setImportError(err.message || "שגיאה בקריאת הקובץ");
+      setImporting(false);
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
       {/* כותרת */}
@@ -46,7 +69,7 @@ export default function HomeScreen() {
       </div>
 
       {/* יצירת דוח חדש */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-4">
         <h2 className="font-semibold text-navy-800 mb-3 flex items-center gap-2">
           <Plus size={18} />
           דוח חדש
@@ -85,6 +108,37 @@ export default function HomeScreen() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* העלאת דוח Excel קיים */}
+      <div className="mb-6">
+        <button
+          onClick={() => { setImportError(""); importRef.current?.click(); }}
+          disabled={importing}
+          className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-amber-300
+                     bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium py-3 rounded-xl
+                     transition-colors active:scale-[0.98] disabled:opacity-60"
+        >
+          {importing ? (
+            <><Loader2 size={18} className="animate-spin" /> קורא קובץ...</>
+          ) : (
+            <><Upload size={18} /> העלאת דוח Excel קיים לעריכה</>
+          )}
+        </button>
+
+        {importError && (
+          <p className="mt-2 text-sm text-red-600 text-center bg-red-50 rounded-xl py-2 px-3">
+            ⚠️ {importError}
+          </p>
+        )}
+
+        <input
+          ref={importRef}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          onChange={handleImport}
+          className="hidden"
+        />
       </div>
 
       {/* ארכיון */}

@@ -78,4 +78,20 @@ export const storage = {
     delete all[id];
     writeAll(all);
   },
+
+  /** ייבוא דוח מקובץ Excel - יוצר דוח חדש עם הנתונים שחולצו */
+  importReport(name, items) {
+    const all = readAll();
+    const id = crypto.randomUUID();
+    all[id] = {
+      id,
+      name,
+      items,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      status: "draft",
+    };
+    writeAll(all);
+    return id;
+  },
 };
