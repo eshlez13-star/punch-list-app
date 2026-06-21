@@ -22,14 +22,17 @@ export default function ReportCreator() {
 
   // === טעינה ===
   useEffect(() => {
-    const report = storage.getReport(id);
-    if (report) {
-      setReportName(report.name);
-      if (report.items?.length) setItems(report.items);
-    } else {
-      navigate("/");
+    async function load() {
+      const report = await storage.getReport(id);
+      if (report) {
+        setReportName(report.name);
+        if (report.items?.length) setItems(report.items);
+      } else {
+        navigate("/");
+      }
+      setLoaded(true);
     }
-    setLoaded(true);
+    load();
   }, [id, navigate]);
 
   // === סימון שינוי ===
@@ -38,13 +41,17 @@ export default function ReportCreator() {
   }, [items, reportName, loaded]);
 
   // === שמירה (מחזיר promise כדי לאפשר המתנה) ===
-  const save = useCallback(() => {
+  const save = useCallback(async () => {
     if (!loaded) return;
     dirty.current = false;
     setSaveStatus("saving");
-    storage.saveReport(id, { name: reportName, items });
-    setSaveStatus("saved");
-    setTimeout(() => setSaveStatus(""), 2000);
+    try {
+      await storage.saveReport(id, { name: reportName, items });
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus(""), 2000);
+    } catch {
+      setSaveStatus("");
+    }
   }, [id, reportName, items, loaded]);
 
   // === שמירה אוטומטית כל 5 שניות ===
@@ -59,9 +66,8 @@ export default function ReportCreator() {
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (dirty.current) {
-        save(); // שמירה אחרונה
+        save(); // שמירה אחרונה (best-effort — הדפדפן לא מחכה ל-async)
         e.preventDefault();
-        // הדפדפן יציג דיאלוג "האם אתה בטוח?" (טקסט מותאם לא נתמך בדפדפנים מודרניים)
         e.returnValue = "";
       }
     };
@@ -94,7 +100,7 @@ export default function ReportCreator() {
   }
 
   // === יצירת Excel - עצמאי לחלוטין מהשמירה ===
-  // משתמש בנתוני ה-state הנוכחיים ישירות, בלי תלות ב-localStorage
+  // משתמש בנתוני ה-state הנוכחיים ישירות, בלי תלות ב-storage
   async function handleGenerate() {
     const hasContent = items.some((it) => it.structure);
     if (!hasContent) {
@@ -103,12 +109,12 @@ export default function ReportCreator() {
     }
     setGenerating(true);
     try {
-      // בנה את אובייקט הדוח מה-state הנוכחי, לא מהסטורג'
+      const existing = await storage.getReport(id);
       const reportData = {
         id,
         name: reportName,
         items,
-        createdAt: storage.getReport(id)?.createdAt || new Date().toISOString(),
+        createdAt: existing?.createdAt || new Date().toISOString(),
       };
       await generateExcel(reportData);
     } catch (e) {
@@ -131,7 +137,7 @@ export default function ReportCreator() {
       {/* כותרת */}
       <div className="flex items-center gap-3 mb-5">
         <button
-          onClick={() => { save(); navigate("/"); }}
+          onClick={async () => { await save(); navigate("/"); }}
           className="p-2 rounded-lg hover:bg-gray-200 transition-colors"
         >
           <ArrowRight size={22} className="text-navy-700" />

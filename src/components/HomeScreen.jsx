@@ -15,24 +15,24 @@ export default function HomeScreen() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setReports(storage.listReports());
+    storage.listReports().then(setReports);
   }, []);
 
-  function handleCreate() {
+  async function handleCreate() {
     const name = newName.trim();
     if (!name) return;
-    const id = storage.createReport(name);
+    const id = await storage.createReport(name);
     navigate(`/report/${id}`);
   }
 
-  function handleDelete(id) {
+  async function handleDelete(id) {
     if (!confirm("למחוק את הדוח?")) return;
-    storage.deleteReport(id);
-    setReports(storage.listReports());
+    await storage.deleteReport(id);
+    setReports(await storage.listReports());
   }
 
   async function handleDownload(id) {
-    const report = storage.getReport(id);
+    const report = await storage.getReport(id);
     if (!report) return;
     await generateExcel(report);
   }
@@ -48,7 +48,7 @@ export default function HomeScreen() {
     try {
       const { name, items } = await readExcel(file);
       const importedName = `מתוקן - ${name}`;
-      const id = storage.importReport(importedName, items);
+      const id = await storage.importReport(importedName, items);
       navigate(`/report/${id}`);
     } catch (err) {
       setImportError(err.message || "שגיאה בקריאת הקובץ");

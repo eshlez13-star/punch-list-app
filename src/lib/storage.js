@@ -1,28 +1,53 @@
 /**
- * שכבת אחסון מבוססת localStorage.
- * כל הדוחות נשמרים כ-JSON תחת מפתח אחד.
+ * שכבת אחסון מבוססת IndexedDB (idb-keyval).
+ * כל הדוחות נשמרים כאובייקט אחד תחת המפתח "punchlist_reports".
  * תמונות נשמרות כ-base64 ישירות בנתונים.
  */
 
+import { get, set } from "idb-keyval";
+
 const STORAGE_KEY = "punchlist_reports";
 
-function readAll() {
+async function readAll() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const data = await get(STORAGE_KEY);
+    return data || {};
   } catch {
     return {};
   }
 }
 
-function writeAll(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+async function writeAll(data) {
+  try {
+    await set(STORAGE_KEY, data);
+  } catch {
+    alert("שגיאת שמירה — הנתונים לא נשמרו. צלם מסך ופנה לתמיכה.");
+    throw new Error("IndexedDB write failed");
+  }
 }
+
+// מיגרציה חד-פעמית: אם IndexedDB ריק ויש נתונים ישנים ב-localStorage — מעתיק אותם.
+// localStorage הישן לא נמחק (נשאר כגיבוי).
+async function migrate() {
+  try {
+    const existing = await get(STORAGE_KEY);
+    if (!existing) {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        await set(STORAGE_KEY, JSON.parse(raw));
+      }
+    }
+  } catch {
+    // כשל במיגרציה — נתוני localStorage נשארים כגיבוי
+  }
+}
+
+migrate();
 
 export const storage = {
   /** רשימת כל הדוחות (בלי פריטים - רק מטא-דאטה) */
-  listReports() {
-    const all = readAll();
+  async listReports() {
+    const all = await readAll();
     return Object.values(all)
       .map(({ items, ...meta }) => ({
         ...meta,
@@ -32,8 +57,8 @@ export const storage = {
   },
 
   /** יצירת דוח חדש */
-  createReport(name) {
-    const all = readAll();
+  async createReport(name) {
+    const all = await readAll();
     const id = crypto.randomUUID();
     all[id] = {
       id,
@@ -43,45 +68,45 @@ export const storage = {
       updatedAt: Date.now(),
       status: "draft",
     };
-    writeAll(all);
+    await writeAll(all);
     return id;
   },
 
   /** קבלת דוח מלא כולל פריטים */
-  getReport(id) {
-    const all = readAll();
+  async getReport(id) {
+    const all = await readAll();
     return all[id] || null;
   },
 
   /** שמירת דוח (שם + פריטים) */
-  saveReport(id, { name, items }) {
-    const all = readAll();
+  async saveReport(id, { name, items }) {
+    const all = await readAll();
     if (!all[id]) return;
     if (name !== undefined) all[id].name = name;
     if (items !== undefined) all[id].items = items;
     all[id].updatedAt = Date.now();
-    writeAll(all);
+    await writeAll(all);
   },
 
   /** עדכון סטטוס דוח */
-  setStatus(id, status) {
-    const all = readAll();
+  async setStatus(id, status) {
+    const all = await readAll();
     if (!all[id]) return;
     all[id].status = status;
     all[id].updatedAt = Date.now();
-    writeAll(all);
+    await writeAll(all);
   },
 
   /** מחיקת דוח */
-  deleteReport(id) {
-    const all = readAll();
+  async deleteReport(id) {
+    const all = await readAll();
     delete all[id];
-    writeAll(all);
+    await writeAll(all);
   },
 
   /** ייבוא דוח מקובץ Excel - יוצר דוח חדש עם הנתונים שחולצו */
-  importReport(name, items) {
-    const all = readAll();
+  async importReport(name, items) {
+    const all = await readAll();
     const id = crypto.randomUUID();
     all[id] = {
       id,
@@ -91,7 +116,7 @@ export const storage = {
       updatedAt: Date.now(),
       status: "draft",
     };
-    writeAll(all);
+    await writeAll(all);
     return id;
   },
 };
