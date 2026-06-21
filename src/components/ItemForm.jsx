@@ -1,19 +1,18 @@
 import { useState, useRef } from "react";
 import { STRUCTURES, RESPONSIBILITIES } from "../lib/constants";
-import { Camera, X, Pencil, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { Camera, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
 import CanvasMarkup from "./CanvasMarkup";
 
 export default function ItemForm({ item, index, onChange, onRemove }) {
   const [showMarkup, setShowMarkup] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const fileRef = useRef(null);
+  const fileAfterRef = useRef(null);
 
-  // עדכון שדה בודד
   function update(field, value) {
     onChange(index, { ...item, [field]: value });
   }
 
-  // עדכון כמה שדות בבת אחת - חשוב! קריאות נפרדות ל-update דורסות אחת את השנייה
   function updateMany(fields) {
     onChange(index, { ...item, ...fields });
   }
@@ -30,6 +29,17 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
     e.target.value = "";
   }
 
+  function handleImageAfterFix(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      update("image_after_fix", ev.target.result);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
   function handleMarkupSave(dataUrl) {
     update("image_marked", dataUrl);
     setShowMarkup(false);
@@ -37,6 +47,10 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
 
   function handleRemoveImage() {
     updateMany({ image_original: null, image_marked: null });
+  }
+
+  function handleRemoveAfterImage() {
+    update("image_after_fix", null);
   }
 
   const displayImage = item.image_marked || item.image_original;
@@ -55,6 +69,7 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
           </span>
           <div className="flex items-center gap-2">
             {displayImage && <span className="w-2 h-2 rounded-full bg-success" />}
+            {item.image_after_fix && <span className="w-2 h-2 rounded-full bg-blue-400" />}
             {collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
           </div>
         </button>
@@ -109,8 +124,9 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
               />
             </div>
 
+            {/* תמונה לפני תיקון */}
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">תמונה</label>
+              <label className="block text-sm font-medium text-gray-600 mb-1">תמונת ליקוי</label>
               {displayImage ? (
                 <div className="relative">
                   <img
@@ -150,6 +166,55 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
                 accept="image/*"
                 capture="environment"
                 onChange={handleImage}
+                className="hidden"
+              />
+            </div>
+
+            {/* תמונה אחרי תיקון */}
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center gap-1.5">
+                <CheckCheck size={14} className="text-blue-500" />
+                תמונה לאחר תיקון
+              </label>
+              {item.image_after_fix ? (
+                <div className="relative">
+                  <img
+                    src={item.image_after_fix}
+                    alt="לאחר תיקון"
+                    className="w-full rounded-xl border border-blue-200 max-h-60 object-contain bg-blue-50"
+                  />
+                  <div className="absolute top-2 left-2 flex gap-1.5">
+                    <button
+                      onClick={() => fileAfterRef.current?.click()}
+                      className="p-2 bg-blue-600/80 text-white rounded-lg backdrop-blur"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={handleRemoveAfterImage}
+                      className="p-2 bg-danger/80 text-white rounded-lg backdrop-blur"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => fileAfterRef.current?.click()}
+                  className="w-full border-2 border-dashed border-blue-200 rounded-xl py-6
+                             flex flex-col items-center gap-2 text-blue-300
+                             hover:border-blue-400 hover:text-blue-400 transition-colors active:bg-blue-50"
+                >
+                  <Camera size={24} />
+                  <span className="text-sm">צלם לאחר ביצוע תיקון</span>
+                </button>
+              )}
+              <input
+                ref={fileAfterRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleImageAfterFix}
                 className="hidden"
               />
             </div>

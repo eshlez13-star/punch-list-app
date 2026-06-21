@@ -8,7 +8,7 @@ import {
   ArrowRight, Plus, FileSpreadsheet, Loader2, Save, CheckCircle2,
 } from "lucide-react";
 
-const SAVE_INTERVAL = 5000; // שמירה אוטומטית כל 5 שניות
+const SAVE_INTERVAL = 5000;
 
 export default function ReportCreator() {
   const { id } = useParams();
@@ -16,7 +16,7 @@ export default function ReportCreator() {
   const [reportName, setReportName] = useState("");
   const [items, setItems] = useState([createEmptyItem()]);
   const [loaded, setLoaded] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("");
+  const [saveStatus, setSaveStatus] = useState(""); // "" | "saving" | "saved"
   const [generating, setGenerating] = useState(false);
   const dirty = useRef(false);
 
@@ -27,7 +27,6 @@ export default function ReportCreator() {
       setReportName(report.name);
       if (report.items?.length) setItems(report.items);
     } else {
-      // דוח לא נמצא — חזרה לבית
       navigate("/");
     }
     setLoaded(true);
@@ -38,9 +37,9 @@ export default function ReportCreator() {
     if (loaded) dirty.current = true;
   }, [items, reportName, loaded]);
 
-  // === שמירה אוטומטית ===
+  // === שמירה (מחזיר promise כדי לאפשר המתנה) ===
   const save = useCallback(() => {
-    if (!dirty.current || !loaded) return;
+    if (!loaded) return;
     dirty.current = false;
     setSaveStatus("saving");
     storage.saveReport(id, { name: reportName, items });
@@ -48,18 +47,32 @@ export default function ReportCreator() {
     setTimeout(() => setSaveStatus(""), 2000);
   }, [id, reportName, items, loaded]);
 
+  // === שמירה אוטומטית כל 5 שניות ===
   useEffect(() => {
-    const interval = setInterval(save, SAVE_INTERVAL);
+    const interval = setInterval(() => {
+      if (dirty.current) save();
+    }, SAVE_INTERVAL);
     return () => clearInterval(interval);
   }, [save]);
 
-  // שמירה גם כשהמשתמש עוזב את הדף (הגנה מפני אובדן)
+  // === הגנה מפני רענון / סגירת טאב ===
   useEffect(() => {
-    const handleBeforeUnload = () => { if (dirty.current) save(); };
+    const handleBeforeUnload = (e) => {
+      if (dirty.current) {
+        save(); // שמירה אחרונה
+        e.preventDefault();
+        // הדפדפן יציג דיאלוג "האם אתה בטוח?" (טקסט מותאם לא נתמך בדפדפנים מודרניים)
+        e.returnValue = "";
+      }
+    };
     window.addEventListener("beforeunload", handleBeforeUnload);
-    // שמירה גם כשאפליקציית המצלמה נפתחת (visibilitychange)
-    const handleVisibility = () => { if (document.hidden && dirty.current) save(); };
+
+    // שמירה כאשר אפליקציית מצלמה נפתחת (visibilitychange)
+    const handleVisibility = () => {
+      if (document.hidden && dirty.current) save();
+    };
     document.addEventListener("visibilitychange", handleVisibility);
+
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibility);
@@ -80,6 +93,8 @@ export default function ReportCreator() {
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }), 100);
   }
 
+  // === יצירת Excel - עצמאי לחלוטין מהשמירה ===
+  // משתמש בנתוני ה-state הנוכחיים ישירות, בלי תלות ב-localStorage
   async function handleGenerate() {
     const hasContent = items.some((it) => it.structure);
     if (!hasContent) {
@@ -87,11 +102,15 @@ export default function ReportCreator() {
       return;
     }
     setGenerating(true);
-    save(); // שמירה לפני יצירה
     try {
-      const report = storage.getReport(id);
-      await generateExcel(report);
-      storage.setStatus(id, "generated");
+      // בנה את אובייקט הדוח מה-state הנוכחי, לא מהסטורג'
+      const reportData = {
+        id,
+        name: reportName,
+        items,
+        createdAt: storage.getReport(id)?.createdAt || new Date().toISOString(),
+      };
+      await generateExcel(reportData);
     } catch (e) {
       alert("שגיאה ביצירת הדוח: " + e.message);
     } finally {
@@ -126,9 +145,19 @@ export default function ReportCreator() {
             placeholder="שם הדוח..."
           />
         </div>
-        <div className="flex items-center gap-1 text-xs text-gray-400 min-w-[55px] justify-end">
-          {saveStatus === "saving" && <><Loader2 size={14} className="animate-spin" /> שומר</>}
-          {saveStatus === "saved" && <><CheckCircle2 size={14} className="text-success" /> נשמר</>}
+
+        {/* אינדיקטור שמירה */}
+        <div className="flex items-center gap-1 text-xs min-w-[75px] justify-end">
+          {saveStatus === "saving" && (
+            <span className="flex items-center gap-1 text-gray-400">
+              <Loader2 size={14} className="animate-spin" /> שומר...
+            </span>
+          )}
+          {saveStatus === "saved" && (
+            <span className="flex items-center gap-1 text-green-600 font-medium animate-pulse">
+              <CheckCircle2 size={14} /> נשמר בהצלחה
+            </span>
+          )}
         </div>
       </div>
 
@@ -169,7 +198,11 @@ export default function ReportCreator() {
             className="flex items-center gap-2 px-5 py-3 rounded-xl border border-gray-300
                        text-gray-600 font-medium active:scale-[0.98] transition-all"
           >
-            <Save size={18} />
+            {saveStatus === "saved" ? (
+              <CheckCircle2 size={18} className="text-green-600" />
+            ) : (
+              <Save size={18} />
+            )}
             שמור
           </button>
 

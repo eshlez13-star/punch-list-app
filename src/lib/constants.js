@@ -30,5 +30,6 @@ export function createEmptyItem() {
     responsibility: "",
     image_original: null,
     image_marked: null,
+    image_after_fix: null,
   };
 }

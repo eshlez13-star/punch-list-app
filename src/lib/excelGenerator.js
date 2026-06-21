@@ -1,10 +1,10 @@
 import ExcelJS from "exceljs";
-import { saveAs } from "file-saver";
 import { RESP_LABELS } from "./constants";
 
 /**
  * יוצר קובץ אקסל מקצועי עם תמונות מוטמעות בתוך התאים.
  * רץ לגמרי בדפדפן - בלי שרת.
+ * מקבל את נתוני הדוח ישירות (אין תלות בשמירה לפני יצירה).
  */
 export async function generateExcel(report) {
   const workbook = new ExcelJS.Workbook();
@@ -14,16 +14,17 @@ export async function generateExcel(report) {
     views: [{ rightToLeft: true }],
   });
 
-  // === רוחב עמודות ===
+  // === רוחב עמודות (9 עמודות - כולל תמונה לאחר תיקון) ===
   ws.columns = [
-    { key: "index", width: 6 },
-    { key: "structure", width: 28 },
-    { key: "room", width: 20 },
-    { key: "section", width: 10 },
-    { key: "image", width: 35 },
-    { key: "description", width: 38 },
+    { key: "index",          width: 6  },
+    { key: "structure",      width: 28 },
+    { key: "room",           width: 20 },
+    { key: "section",        width: 10 },
+    { key: "image",          width: 35 },
+    { key: "image_after",    width: 35 },
+    { key: "description",    width: 38 },
     { key: "responsibility", width: 16 },
-    { key: "status", width: 14 },
+    { key: "status",         width: 14 },
   ];
 
   // === סגנונות ===
@@ -39,8 +40,10 @@ export async function generateExcel(report) {
   };
   const cellAlign = { horizontal: "center", vertical: "middle", wrapText: true };
 
+  const TOTAL_COLS = 9;
+
   // === שורה 1: כותרת הדוח ===
-  ws.mergeCells("A1:H1");
+  ws.mergeCells("A1:I1");
   const titleCell = ws.getCell("A1");
   titleCell.value = report.name;
   titleCell.font = { bold: true, size: 18, color: { argb: `FF${NAVY}` } };
@@ -48,7 +51,7 @@ export async function generateExcel(report) {
   ws.getRow(1).height = 45;
 
   // === שורה 2: תאריך + שם חברה ===
-  ws.mergeCells("A2:H2");
+  ws.mergeCells("A2:I2");
   const dateStr = new Date(report.createdAt).toLocaleDateString("he-IL");
   const subCell = ws.getCell("A2");
   subCell.value = `${dateStr}  |  Spivak Engineering`;
@@ -60,7 +63,7 @@ export async function generateExcel(report) {
   ws.getRow(3).height = 8;
 
   // === שורה 4: כותרות עמודות ===
-  const HEADERS = ["#", "מבנה", "חדר/חלל", "חתך", "תמונה", "פירוט הבעיה", "גורם אחראי", "סטטוס"];
+  const HEADERS = ["#", "מבנה", "חדר/חלל", "חתך", "תמונת ליקוי", "לאחר תיקון", "פירוט הבעיה", "גורם אחראי", "סטטוס"];
   const headerRow = ws.getRow(4);
   HEADERS.forEach((h, i) => {
     const cell = headerRow.getCell(i + 1);
@@ -84,12 +87,13 @@ export async function generateExcel(report) {
     row.getCell(2).value = item.structure || "";
     row.getCell(3).value = item.room || "";
     row.getCell(4).value = item.section !== "" ? Number(item.section) : "";
-    // עמודה 5 (תמונה) - מטופלת למטה
-    row.getCell(6).value = item.description || "";
-    row.getCell(7).value = RESP_LABELS[item.responsibility] || item.responsibility || "";
+    // עמודה 5 (תמונת ליקוי) - מטופלת למטה
+    // עמודה 6 (לאחר תיקון) - מטופלת למטה
+    row.getCell(7).value = item.description || "";
+    row.getCell(8).value = RESP_LABELS[item.responsibility] || item.responsibility || "";
 
     // סטטוס עם צבע רקע
-    const statusCell = row.getCell(8);
+    const statusCell = row.getCell(9);
     statusCell.value = "לביצוע";
     statusCell.fill = {
       type: "pattern",
@@ -99,42 +103,54 @@ export async function generateExcel(report) {
     statusCell.font = { bold: true, size: 10, color: { argb: "FF856404" } };
 
     // עיצוב כל התאים בשורה
-    for (let c = 1; c <= 8; c++) {
+    for (let c = 1; c <= TOTAL_COLS; c++) {
       const cell = row.getCell(c);
       cell.border = cellBorder;
       cell.alignment = cellAlign;
       if (!cell.font?.bold) cell.font = { size: 10 };
     }
 
-    // === הטמעת תמונה ===
+    // === הטמעת תמונת ליקוי (עמודה 5) ===
     const imgData = item.image_marked || item.image_original;
+    let rowHeight = 30;
+
     if (imgData) {
       try {
-        // חילוץ base64 נקי
         const base64 = imgData.includes(",") ? imgData.split(",")[1] : imgData;
-
-        const imageId = workbook.addImage({
-          base64,
-          extension: "png",
-        });
-
-        // תמונה בתוך התא (עמודה 5 = אינדקס 4)
+        const imageId = workbook.addImage({ base64, extension: "png" });
         ws.addImage(imageId, {
-          tl: { col: 4, row: rowNum - 1 }, // top-left (0-indexed row)
-          br: { col: 5, row: rowNum },      // bottom-right
+          tl: { col: 4, row: rowNum - 1 },
+          br: { col: 5, row: rowNum },
           editAs: "oneCell",
         });
-
-        // גובה שורה להצגת תמונה
-        row.height = 120;
+        rowHeight = 120;
       } catch {
         row.getCell(5).value = "שגיאה בתמונה";
-        row.height = 30;
       }
     } else {
       row.getCell(5).value = "—";
-      row.height = 30;
     }
+
+    // === הטמעת תמונה לאחר תיקון (עמודה 6) ===
+    const imgAfter = item.image_after_fix;
+    if (imgAfter) {
+      try {
+        const base64After = imgAfter.includes(",") ? imgAfter.split(",")[1] : imgAfter;
+        const imageIdAfter = workbook.addImage({ base64: base64After, extension: "png" });
+        ws.addImage(imageIdAfter, {
+          tl: { col: 5, row: rowNum - 1 },
+          br: { col: 6, row: rowNum },
+          editAs: "oneCell",
+        });
+        rowHeight = Math.max(rowHeight, 120);
+      } catch {
+        row.getCell(6).value = "שגיאה בתמונה";
+      }
+    } else {
+      row.getCell(6).value = "—";
+    }
+
+    row.height = rowHeight;
   }
 
   // === שורת סיכום ===
@@ -149,5 +165,14 @@ export async function generateExcel(report) {
   });
 
   const safeName = report.name.replace(/[/\\?%*:|"<>]/g, "-").slice(0, 50);
-  saveAs(blob, `${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  const filename = `${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
