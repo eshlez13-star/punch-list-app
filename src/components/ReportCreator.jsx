@@ -166,21 +166,54 @@ export default function ReportCreator() {
     e.target.value = "";
   }
 
-  function handleShare() {
+  async function handleShare() {
     const hasContent = items.some((it) => it.structure);
     if (!hasContent) {
       alert("יש למלא לפחות פריט אחד עם מבנה.");
       return;
     }
-    const ready = excelBlobRef.current;
-    if (ready && navigator.canShare) {
-      const file = new File([ready.blob], ready.filename, { type: ready.blob.type });
-      if (navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: reportName })
-          .catch((err) => { if (err.name !== "AbortError") fallbackDownload(); });
-        return;
+
+    const diag = [];
+    let ready = excelBlobRef.current;
+    diag.push(ready ? "1. blob מוכן ✓" : "1. blob ריק — בונה עכשיו");
+
+    // אם ה-blob טרם נבנה (ה-debounce עדיין לא רץ) — בונים סינכרונית כדי לא ליפול להורדה סתם
+    if (!ready) {
+      try {
+        const existing = await storage.getReport(id);
+        ready = await buildExcelBlob({
+          id,
+          name: reportName,
+          items,
+          createdAt: existing?.createdAt || new Date().toISOString(),
+        });
+        excelBlobRef.current = ready;
+        diag.push("   בנייה הצליחה ✓");
+      } catch {
+        diag.push("   בנייה נכשלה ✗");
       }
     }
+
+    let file = null;
+    let canShareFiles = false;
+    if (ready) {
+      file = new File([ready.blob], ready.filename, { type: ready.blob.type });
+      canShareFiles =
+        typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+    }
+    diag.push("2. canShare(files): " + (canShareFiles ? "true ✓" : "false ✗"));
+
+    if (canShareFiles) {
+      try {
+        await navigator.share({ files: [file], title: reportName });
+        return; // שיתוף הצליח
+      } catch (err) {
+        if (err.name === "AbortError") return; // המשתמש ביטל — לא נופלים להורדה
+        diag.push("3. share נזרק: " + err.name);
+      }
+    }
+
+    alert("אבחון שיתוף:\n" + diag.join("\n"));
     fallbackDownload();
   }
 
