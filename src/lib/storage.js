@@ -79,7 +79,7 @@ export const storage = {
     return all[id] || null;
   },
 
-  /** שמירת דוח (שם + פריטים + נוכחים) */
+  /** שמירת דוח (שם + פריטים + משתתפים) */
   async saveReport(id, { name, items, attendees }) {
     const all = await readAll();
     if (!all[id]) return;

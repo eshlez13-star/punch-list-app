@@ -68,11 +68,11 @@ async function buildExcelBlob(report) {
   subCell.alignment = { horizontal: "center", vertical: "middle" };
   ws.getRow(2).height = 22;
 
-  // === שורה 3: נוכחים ===
+  // === שורה 3: משתתפים ===
   ws.mergeCells("A3:I3");
   const attendeesCell = ws.getCell("A3");
   attendeesCell.value =
-    "נוכחים: " + ((report.attendees || []).filter(Boolean).join("  •  ") || "—");
+    "משתתפים: " + ((report.attendees || []).filter(Boolean).join("  •  ") || "—");
   attendeesCell.font = { size: 10, color: { argb: "FF444444" } };
   attendeesCell.alignment = { horizontal: "center", vertical: "middle" };
   ws.getRow(3).height = 20;

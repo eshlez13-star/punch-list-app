@@ -227,9 +227,9 @@ export default function ReportCreator() {
         SPIVAK ENGINEERING
       </div>
 
-      {/* נוכחים */}
+      {/* משתתפים */}
       <div className="mb-5" dir="rtl">
-        <h3 className="text-sm font-semibold text-navy-900 mb-2">נוכחים</h3>
+        <h3 className="text-sm font-semibold text-navy-900 mb-2">משתתפים</h3>
         <div className="space-y-2">
           {attendees.map((name, i) => (
             <div key={i} className="flex items-center gap-2">
@@ -241,7 +241,7 @@ export default function ReportCreator() {
                   next[i] = e.target.value;
                   setAttendees(next);
                 }}
-                placeholder="שם נוכח"
+                placeholder="שם משתתף"
                 className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-base
                            focus:outline-none focus:ring-2 focus:ring-navy-600"
               />
@@ -251,7 +251,7 @@ export default function ReportCreator() {
                 disabled={attendees.length <= 2}
                 className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50
                            disabled:opacity-0 disabled:pointer-events-none transition-colors"
-                aria-label="הסר נוכח"
+                aria-label="הסר משתתף"
               >
                 <X size={18} />
               </button>
@@ -265,7 +265,7 @@ export default function ReportCreator() {
                      hover:text-navy-900 transition-colors"
         >
           <Plus size={16} />
-          הוסף נוכח
+          הוסף משתתף
         </button>
       </div>
 
