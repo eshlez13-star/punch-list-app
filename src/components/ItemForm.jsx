@@ -117,6 +117,7 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
             {subtitle && <span className="text-gray-400 font-normal text-sm mr-2">{subtitle}</span>}
           </span>
           <div className="flex items-center gap-2">
+            {item.isSafety && <span className="w-2 h-2 rounded-full bg-danger" />}
             {displayImage && <span className="w-2 h-2 rounded-full bg-success" />}
             {item.image_after_fix && <span className="w-2 h-2 rounded-full bg-blue-400" />}
             {collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
@@ -125,6 +126,20 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
 
         {!collapsed && (
           <div className="p-4 space-y-4">
+            <button
+              type="button"
+              onClick={() => update("isSafety", !item.isSafety)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors
+                ${item.isSafety
+                  ? "bg-red-50 border-danger text-danger font-bold"
+                  : "bg-gray-50 border-gray-300 text-gray-500 font-medium"}`}
+            >
+              <span>ליקוי בטיחות</span>
+              <span className={`text-xs px-2.5 py-1 rounded-lg ${item.isSafety ? "bg-danger text-white" : "bg-gray-200 text-gray-500"}`}>
+                {item.isSafety ? "פעיל" : "כבוי"}
+              </span>
+            </button>
+
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">מבנה</label>
               <select

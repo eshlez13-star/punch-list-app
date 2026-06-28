@@ -152,6 +152,14 @@ async function buildExcelBlob(report) {
       if (!cell.font?.bold) cell.font = { size: 10 };
     }
 
+    if (item.isSafety) {
+      for (let c = 1; c <= TOTAL_COLS; c++) {
+        const cell = row.getCell(c);
+        const prev = cell.font || {};
+        cell.font = { ...prev, bold: true, color: { argb: "FFFF0000" } };
+      }
+    }
+
     const defectUrl = item.image_marked || item.image_original;
     const afterUrl = item.image_after_fix;
 

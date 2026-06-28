@@ -56,5 +56,6 @@ export function createEmptyItem() {
     image_original: null,
     image_marked: null,
     image_after_fix: null,
+    isSafety: false,
   };
 }
