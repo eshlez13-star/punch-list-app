@@ -200,6 +200,192 @@ async function buildExcelBlob(report) {
   return { blob, filename };
 }
 
+export async function buildMergedExcelBlob(reports) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Spivak Engineering";
+
+  const ws = workbook.addWorksheet("דוח ליקויים", {
+    views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }],
+  });
+
+  ws.columns = [
+    { key: "index",          width: 6  },
+    { key: "structure",      width: 28 },
+    { key: "room",           width: 20 },
+    { key: "section",        width: 10 },
+    { key: "image",          width: 35 },
+    { key: "image_after",    width: 35 },
+    { key: "description",    width: 38 },
+    { key: "responsibility", width: 16 },
+    { key: "status",         width: 14 },
+    { key: "date",           width: 14 },
+  ];
+
+  const NAVY = "1e3a5f";
+  const headerFill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${NAVY}` } };
+  const headerFont = { bold: true, size: 11, color: { argb: "FFFFFFFF" } };
+  const headerAlign = { horizontal: "center", vertical: "middle", wrapText: true };
+  const cellBorder = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" },
+  };
+  const cellAlign = { horizontal: "center", vertical: "middle", wrapText: true };
+
+  const TOTAL_COLS = 10;
+
+  ws.mergeCells("A1:J1");
+  const titleCell = ws.getCell("A1");
+  titleCell.value = "דוח ליקויים מאוחד";
+  titleCell.font = { bold: true, size: 18, color: { argb: `FF${NAVY}` } };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  ws.getRow(1).height = 45;
+
+  ws.mergeCells("A2:J2");
+  const todayStr = new Date().toLocaleDateString("he-IL");
+  const subCell = ws.getCell("A2");
+  subCell.value = `${todayStr}  |  Spivak Engineering`;
+  subCell.font = { size: 10, color: { argb: "FF666666" } };
+  subCell.alignment = { horizontal: "center", vertical: "middle" };
+  ws.getRow(2).height = 22;
+
+  ws.mergeCells("A3:J3");
+  const allAttendees = [...new Set(reports.flatMap(r => r.attendees || []).filter(Boolean))];
+  const attendeesCell = ws.getCell("A3");
+  attendeesCell.value = "נוכחים: " + (allAttendees.join("  •  ") || "—");
+  attendeesCell.font = { size: 10, color: { argb: "FF444444" } };
+  attendeesCell.alignment = { horizontal: "center", vertical: "middle" };
+  ws.getRow(3).height = 20;
+
+  ws.getRow(4).height = 8;
+
+  const HEADERS = ["#", "מבנה", "חדר/חלל", "חתך", "תמונת ליקוי", "לאחר תיקון", "פירוט הבעיה", "גורם אחראי", "סטטוס", "תאריך"];
+  const headerRow = ws.getRow(5);
+  HEADERS.forEach((h, i) => {
+    const cell = headerRow.getCell(i + 1);
+    cell.value = h;
+    cell.fill = headerFill;
+    cell.font = headerFont;
+    cell.alignment = headerAlign;
+    cell.border = cellBorder;
+  });
+  headerRow.height = 28;
+
+  const sortedReports = [...reports].sort(
+    (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+  );
+
+  const COL_W = 35 * 7 + 5;
+  const MARGIN = 2;
+  const MAX_IMG_H = 200;
+
+  async function measure(dataUrl) {
+    const s = await getImageSize(dataUrl);
+    const availW = COL_W - 2 * MARGIN;
+    if (s && s.w && s.h) {
+      const scale = Math.min(availW / s.w, MAX_IMG_H / s.h);
+      return { drawW: s.w * scale, drawH: s.h * scale };
+    }
+    return { drawW: availW, drawH: MAX_IMG_H };
+  }
+
+  function addFitted(dataUrl, colIndex, drawW, drawH, rowIndex, rowHpx) {
+    const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+    const imageId = workbook.addImage({ base64, extension: "png" });
+    const offX = (COL_W - drawW) / 2;
+    const offY = (rowHpx - drawH) / 2;
+    ws.addImage(imageId, {
+      tl: { col: colIndex + offX / COL_W, row: rowIndex + offY / rowHpx },
+      ext: { width: drawW, height: drawH },
+      editAs: "oneCell",
+    });
+  }
+
+  let runningIndex = 0;
+  let totalItems = 0;
+
+  for (const report of sortedReports) {
+    const items = report.items || [];
+    const reportDateStr = new Date(report.createdAt).toLocaleDateString("he-IL");
+
+    for (const item of items) {
+      const rowNum = 6 + runningIndex;
+      const row = ws.getRow(rowNum);
+
+      row.getCell(1).value = runningIndex + 1;
+      row.getCell(2).value = item.structure || "";
+      row.getCell(3).value = item.room || "";
+      row.getCell(4).value = item.section !== "" ? Number(item.section) : "";
+      row.getCell(7).value = item.description || "";
+      row.getCell(8).value = RESP_LABELS[item.responsibility] || item.responsibility || "";
+      row.getCell(10).value = reportDateStr;
+
+      const statusCell = row.getCell(9);
+      statusCell.value = "לביצוע";
+      statusCell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFFFF3CD" },
+      };
+      statusCell.font = { bold: true, size: 10, color: { argb: "FF856404" } };
+
+      for (let c = 1; c <= TOTAL_COLS; c++) {
+        const cell = row.getCell(c);
+        cell.border = cellBorder;
+        cell.alignment = cellAlign;
+        if (!cell.font?.bold) cell.font = { size: 10 };
+      }
+
+      if (item.isSafety) {
+        for (let c = 1; c <= TOTAL_COLS; c++) {
+          const cell = row.getCell(c);
+          const prev = cell.font || {};
+          cell.font = { ...prev, bold: true, color: { argb: "FFFF0000" } };
+        }
+      }
+
+      const defectUrl = item.image_marked || item.image_original;
+      const afterUrl = item.image_after_fix;
+
+      let mDefect = null, mAfter = null;
+      if (defectUrl) { try { mDefect = await measure(defectUrl); } catch { row.getCell(5).value = "שגיאה בתמונה"; } }
+      if (afterUrl)  { try { mAfter  = await measure(afterUrl);  } catch { row.getCell(6).value = "שגיאה בתמונה"; } }
+
+      const maxDrawH = Math.max(mDefect?.drawH || 0, mAfter?.drawH || 0);
+      const rowHpx = maxDrawH > 0 ? maxDrawH + 2 * MARGIN : 40;
+
+      if (mDefect) addFitted(defectUrl, 4, mDefect.drawW, mDefect.drawH, rowNum - 1, rowHpx);
+      else row.getCell(5).value = "—";
+
+      if (mAfter) addFitted(afterUrl, 5, mAfter.drawW, mAfter.drawH, rowNum - 1, rowHpx);
+      else row.getCell(6).value = "—";
+
+      row.height = rowHpx * 0.75;
+
+      runningIndex++;
+      totalItems++;
+    }
+  }
+
+  if (totalItems > 0) {
+    ws.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5 + totalItems, column: 10 } };
+  }
+
+  const summaryRow = ws.getRow(6 + totalItems + 1);
+  summaryRow.getCell(1).value = `סה"כ ליקויים: ${totalItems}`;
+  summaryRow.getCell(1).font = { bold: true, size: 11 };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  const filename = `דוח_מאוחד_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+  return { blob, filename };
+}
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -213,6 +399,11 @@ function downloadBlob(blob, filename) {
 
 export async function generateExcel(report) {
   const { blob, filename } = await buildExcelBlob(report);
+  downloadBlob(blob, filename);
+}
+
+export async function generateMergedExcel(reports) {
+  const { blob, filename } = await buildMergedExcelBlob(reports);
   downloadBlob(blob, filename);
 }
 

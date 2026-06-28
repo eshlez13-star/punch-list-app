@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { storage } from "../lib/storage";
 import { readExcel } from "../lib/excelReader";
 import { Plus, Download, Pencil, Trash2, FileSpreadsheet, HardHat, Upload, Loader2 } from "lucide-react";
-import { generateExcel } from "../lib/excelGenerator";
+import { generateExcel, generateMergedExcel } from "../lib/excelGenerator";
 
 export default function HomeScreen() {
   const [reports, setReports] = useState([]);
@@ -11,6 +11,7 @@ export default function HomeScreen() {
   const [newName, setNewName] = useState("");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
   const importRef = useRef(null);
   const navigate = useNavigate();
 
@@ -35,6 +36,20 @@ export default function HomeScreen() {
     const report = await storage.getReport(id);
     if (!report) return;
     await generateExcel(report);
+  }
+
+  function toggleSelect(id) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  async function handleMerge() {
+    const fullReports = await Promise.all(selectedIds.map((id) => storage.getReport(id)));
+    const reports = fullReports
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    await generateMergedExcel(reports);
   }
 
   async function handleImport(e) {
@@ -148,6 +163,16 @@ export default function HomeScreen() {
             <FileSpreadsheet size={18} />
             ארכיון דוחות
           </h2>
+          {selectedIds.length >= 2 && (
+            <button
+              onClick={handleMerge}
+              className="mt-3 w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700
+                         text-white font-medium py-2.5 rounded-xl transition-colors active:scale-[0.98]"
+            >
+              <Download size={18} />
+              מזג נבחרים ל-Excel
+            </button>
+          )}
         </div>
 
         {reports.length === 0 ? (
@@ -158,6 +183,13 @@ export default function HomeScreen() {
           <div className="divide-y divide-gray-100">
             {reports.map((r) => (
               <div key={r.id} className="px-5 py-4 flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(r.id)}
+                  onChange={() => toggleSelect(r.id)}
+                  className="w-4 h-4 shrink-0 accent-navy-700 cursor-pointer"
+                  title="בחר למיזוג"
+                />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-navy-900 truncate">{r.name}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
