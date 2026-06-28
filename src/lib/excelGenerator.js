@@ -88,7 +88,8 @@ async function buildExcelBlob(report) {
   const items = report.items || [];
 
   // מידות התא של עמודות התמונה (לפי width=35 ו-height=120)
-  const IMG_MARGIN = 2;
+  const IMG_MARGIN_X = 2;
+  const IMG_MARGIN_Y = 10;
   const IMG_CELL_W = 35 * 7 + 5;
   const IMG_CELL_H = Math.round(120 * 4 / 3);
 
@@ -96,8 +97,8 @@ async function buildExcelBlob(report) {
     const size = await getImageSize(dataUrl);
     const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
     const imageId = workbook.addImage({ base64, extension: "png" });
-    const availW = IMG_CELL_W - 2 * IMG_MARGIN;
-    const availH = IMG_CELL_H - 2 * IMG_MARGIN;
+    const availW = IMG_CELL_W - 2 * IMG_MARGIN_X;
+    const availH = IMG_CELL_H - 2 * IMG_MARGIN_Y;
     let drawW = availW, drawH = availH;
     if (size && size.w && size.h) {
       const scale = Math.min(availW / size.w, availH / size.h);
