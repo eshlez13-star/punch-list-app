@@ -25,6 +25,16 @@ function cellText(cell) {
   return String(v).trim();
 }
 
+function bufferToDataUrl(buffer, extension) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return `data:image/${extension || "png"};base64,${btoa(binary)}`;
+}
+
 /**
  * קורא קובץ Excel שנוצר על ידי האפליקציה וממיר אותו לנתוני דוח.
  * תומך בפורמט 8 עמודות (ישן) ו-9 עמודות (עם עמודת "לאחר תיקון").
@@ -44,21 +54,33 @@ export async function readExcel(file) {
   const rawTitle = cellText(ws.getCell("A1"));
   const reportName = rawTitle || "דוח מיובא";
 
+  // === זיהוי שורת כותרות דינמי (שורות 1–12) ===
+  let headerRowNumber = 4;
+  for (let r = 1; r <= 12; r++) {
+    const col1 = cellText(ws.getRow(r).getCell(1));
+    const col2 = cellText(ws.getRow(r).getCell(2));
+    if (col1 === "#" || col2.includes("מבנה")) {
+      headerRowNumber = r;
+      break;
+    }
+  }
+
   // === זיהוי פורמט: 8 עמודות (ישן) או 9 עמודות (חדש עם "לאחר תיקון") ===
   // בפורמט החדש: עמודה 6 = "לאחר תיקון", description בעמודה 7
   // בפורמט הישן: עמודה 6 = "פירוט הבעיה", description בעמודה 6
-  const col6Header = cellText(ws.getRow(4).getCell(6));
+  const col6Header = cellText(ws.getRow(headerRowNumber).getCell(6));
   const isNewFormat = col6Header.includes("תיקון") || col6Header.includes("after");
 
   const COL = isNewFormat
     ? { structure: 2, room: 3, section: 4, description: 7, responsibility: 8 }
     : { structure: 2, room: 3, section: 4, description: 6, responsibility: 7 };
 
-  // === קריאת שורות נתונים (משורה 5 ואילך) ===
+  // === קריאת שורות נתונים (משורת הכותרות + 1 ואילך) ===
   const items = [];
+  const rowToIndex = {};
 
   ws.eachRow((row, rowNumber) => {
-    if (rowNumber < 5) return; // דלג על כותרות
+    if (rowNumber <= headerRowNumber) return;
 
     const indexCell = cellText(row.getCell(1));
 
@@ -87,10 +109,26 @@ export async function readExcel(file) {
       description,
       responsibility,
     });
+    rowToIndex[rowNumber] = items.length - 1;
   });
 
   if (items.length === 0) {
     throw new Error("לא נמצאו פריטים בקובץ. ודא שהקובץ נוצר על ידי האפליקציה.");
+  }
+
+  const imgs = ws.getImages ? ws.getImages() : [];
+  for (const image of imgs) {
+    const media = typeof workbook.getImage === "function"
+      ? workbook.getImage(Number(image.imageId))
+      : workbook.model?.media?.[Number(image.imageId)];
+    if (!media?.buffer) continue;
+    const tl = image.range?.tl;
+    if (!tl) continue;
+    const dataUrl = bufferToDataUrl(media.buffer, media.extension);
+    const idx = rowToIndex[tl.nativeRow + 1];
+    if (idx === undefined) continue;
+    if (tl.nativeCol === 4) items[idx].image_original = dataUrl;
+    else if (tl.nativeCol === 5) items[idx].image_after_fix = dataUrl;
   }
 
   return { name: reportName, items };
