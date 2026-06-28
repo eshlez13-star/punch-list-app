@@ -75,9 +75,6 @@ async function buildExcelBlob(report) {
   });
   headerRow.height = 28;
 
-  // AutoFilter על שורת הכותרת — מאפשר מיון/סינון לפי כל עמודה
-  ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: 9 } };
-
   // === שורות נתונים ===
   const items = report.items || [];
 
@@ -152,6 +149,11 @@ async function buildExcelBlob(report) {
     }
 
     row.height = rowHeight;
+  }
+
+  // AutoFilter על כל הטבלה (כותרת + שורות נתונים) — מיון/סינון לפי כל עמודה
+  if (items.length > 0) {
+    ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + items.length, column: 9 } };
   }
 
   // === שורת סיכום ===
