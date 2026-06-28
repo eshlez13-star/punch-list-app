@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { STRUCTURES, RESPONSIBILITIES, DEFECT_TEMPLATES } from "../lib/constants";
 import { compressImage } from "../lib/imageCompressor";
 import { Camera, FolderOpen, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
@@ -12,6 +12,13 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
   const fileGalleryRef = useRef(null);
   const fileAfterCamRef = useRef(null);
   const fileAfterGalleryRef = useRef(null);
+
+  useEffect(() => {
+    if (item.needsMarkup) {
+      setShowMarkup(true);
+      update("needsMarkup", false);
+    }
+  }, [item.needsMarkup]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function update(field, value) {
     onChange(index, { ...item, [field]: value });

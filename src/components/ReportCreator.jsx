@@ -123,14 +123,14 @@ export default function ReportCreator() {
 
         if (isEmpty) {
           return prev.map((it, i) =>
-            i === prev.length - 1 ? { ...it, image_original: compressed } : it
+            i === prev.length - 1 ? { ...it, image_original: compressed, needsMarkup: true } : it
           );
         } else {
           const inherited = {
             structure: last?.structure || "",
             room: last?.room || "",
           };
-          return [...prev, { ...createEmptyItem(), ...inherited, image_original: compressed }];
+          return [...prev, { ...createEmptyItem(), ...inherited, image_original: compressed, needsMarkup: true }];
         }
       });
 
