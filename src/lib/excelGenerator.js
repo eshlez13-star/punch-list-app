@@ -1,7 +1,14 @@
 import ExcelJS from "exceljs";
 import { RESP_LABELS } from "./constants";
 
-const IMG_PAD = 0.04;
+function getImageSize(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
 
 /**
  * יוצר קובץ אקסל מקצועי עם תמונות מוטמעות בתוך התאים.
@@ -80,6 +87,32 @@ async function buildExcelBlob(report) {
   // === שורות נתונים ===
   const items = report.items || [];
 
+  // מידות התא של עמודות התמונה (לפי width=35 ו-height=120)
+  const IMG_MARGIN = 2;
+  const IMG_CELL_W = 35 * 7 + 5;
+  const IMG_CELL_H = Math.round(120 * 4 / 3);
+
+  async function placeImage(dataUrl, colIndex, rowIndex) {
+    const size = await getImageSize(dataUrl);
+    const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+    const imageId = workbook.addImage({ base64, extension: "png" });
+    const availW = IMG_CELL_W - 2 * IMG_MARGIN;
+    const availH = IMG_CELL_H - 2 * IMG_MARGIN;
+    let drawW = availW, drawH = availH;
+    if (size && size.w && size.h) {
+      const scale = Math.min(availW / size.w, availH / size.h);
+      drawW = Math.round(size.w * scale);
+      drawH = Math.round(size.h * scale);
+    }
+    const offX = (IMG_CELL_W - drawW) / 2;
+    const offY = (IMG_CELL_H - drawH) / 2;
+    ws.addImage(imageId, {
+      tl: { col: colIndex + offX / IMG_CELL_W, row: rowIndex + offY / IMG_CELL_H },
+      ext: { width: drawW, height: drawH },
+      editAs: "oneCell",
+    });
+  }
+
   for (let idx = 0; idx < items.length; idx++) {
     const item = items[idx];
     const rowNum = 5 + idx;
@@ -116,13 +149,7 @@ async function buildExcelBlob(report) {
 
     if (imgData) {
       try {
-        const base64 = imgData.includes(",") ? imgData.split(",")[1] : imgData;
-        const imageId = workbook.addImage({ base64, extension: "png" });
-        ws.addImage(imageId, {
-          tl: { col: 4 + IMG_PAD, row: (rowNum - 1) + IMG_PAD },
-          br: { col: 5 - IMG_PAD, row: rowNum - IMG_PAD },
-          editAs: "oneCell",
-        });
+        await placeImage(imgData, 4, rowNum - 1);
         rowHeight = 120;
       } catch {
         row.getCell(5).value = "שגיאה בתמונה";
@@ -135,13 +162,7 @@ async function buildExcelBlob(report) {
     const imgAfter = item.image_after_fix;
     if (imgAfter) {
       try {
-        const base64After = imgAfter.includes(",") ? imgAfter.split(",")[1] : imgAfter;
-        const imageIdAfter = workbook.addImage({ base64: base64After, extension: "png" });
-        ws.addImage(imageIdAfter, {
-          tl: { col: 5 + IMG_PAD, row: (rowNum - 1) + IMG_PAD },
-          br: { col: 6 - IMG_PAD, row: rowNum - IMG_PAD },
-          editAs: "oneCell",
-        });
+        await placeImage(imgAfter, 5, rowNum - 1);
         rowHeight = Math.max(rowHeight, 120);
       } catch {
         row.getCell(6).value = "שגיאה בתמונה";
