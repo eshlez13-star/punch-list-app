@@ -68,12 +68,21 @@ async function buildExcelBlob(report) {
   subCell.alignment = { horizontal: "center", vertical: "middle" };
   ws.getRow(2).height = 22;
 
-  // === שורה 3: ריקה ===
-  ws.getRow(3).height = 8;
+  // === שורה 3: נוכחים ===
+  ws.mergeCells("A3:I3");
+  const attendeesCell = ws.getCell("A3");
+  attendeesCell.value =
+    "נוכחים: " + ((report.attendees || []).filter(Boolean).join("  •  ") || "—");
+  attendeesCell.font = { size: 10, color: { argb: "FF444444" } };
+  attendeesCell.alignment = { horizontal: "center", vertical: "middle" };
+  ws.getRow(3).height = 20;
 
-  // === שורה 4: כותרות עמודות ===
+  // === שורה 4: ריקה ===
+  ws.getRow(4).height = 8;
+
+  // === שורה 5: כותרות עמודות ===
   const HEADERS = ["#", "מבנה", "חדר/חלל", "חתך", "תמונת ליקוי", "לאחר תיקון", "פירוט הבעיה", "גורם אחראי", "סטטוס"];
-  const headerRow = ws.getRow(4);
+  const headerRow = ws.getRow(5);
   HEADERS.forEach((h, i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = h;
@@ -115,7 +124,7 @@ async function buildExcelBlob(report) {
 
   for (let idx = 0; idx < items.length; idx++) {
     const item = items[idx];
-    const rowNum = 5 + idx;
+    const rowNum = 6 + idx;
     const row = ws.getRow(rowNum);
 
     row.getCell(1).value = idx + 1;
@@ -164,11 +173,11 @@ async function buildExcelBlob(report) {
 
   // AutoFilter על כל הטבלה (כותרת + שורות נתונים) — מיון/סינון לפי כל עמודה
   if (items.length > 0) {
-    ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + items.length, column: 9 } };
+    ws.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5 + items.length, column: 9 } };
   }
 
   // === שורת סיכום ===
-  const summaryRow = ws.getRow(5 + items.length + 1);
+  const summaryRow = ws.getRow(6 + items.length + 1);
   summaryRow.getCell(1).value = `סה"כ ליקויים: ${items.length}`;
   summaryRow.getCell(1).font = { bold: true, size: 11 };
 

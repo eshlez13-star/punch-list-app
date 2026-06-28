@@ -64,6 +64,7 @@ export const storage = {
       id,
       name,
       items: [],
+      attendees: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
       status: "draft",
@@ -78,12 +79,13 @@ export const storage = {
     return all[id] || null;
   },
 
-  /** שמירת דוח (שם + פריטים) */
-  async saveReport(id, { name, items }) {
+  /** שמירת דוח (שם + פריטים + נוכחים) */
+  async saveReport(id, { name, items, attendees }) {
     const all = await readAll();
     if (!all[id]) return;
     if (name !== undefined) all[id].name = name;
     if (items !== undefined) all[id].items = items;
+    if (attendees !== undefined) all[id].attendees = attendees;
     all[id].updatedAt = Date.now();
     await writeAll(all);
   },

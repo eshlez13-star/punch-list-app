@@ -16,6 +16,7 @@ export default function ReportCreator() {
   const navigate = useNavigate();
   const [reportName, setReportName] = useState("");
   const [items, setItems] = useState([createEmptyItem()]);
+  const [attendees, setAttendees] = useState(["", ""]);
   const [loaded, setLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState(""); // "" | "saving" | "saved"
   const [generating, setGenerating] = useState(false);
@@ -30,6 +31,7 @@ export default function ReportCreator() {
       if (report) {
         setReportName(report.name);
         if (report.items?.length) setItems(report.items);
+        setAttendees(report.attendees?.length >= 2 ? report.attendees : ["", ""]);
       } else {
         navigate("/");
       }
@@ -41,7 +43,7 @@ export default function ReportCreator() {
   // === סימון שינוי ===
   useEffect(() => {
     if (loaded) dirty.current = true;
-  }, [items, reportName, loaded]);
+  }, [items, reportName, attendees, loaded]);
 
   // === שמירה (מחזיר promise כדי לאפשר המתנה) ===
   const save = useCallback(async () => {
@@ -49,13 +51,13 @@ export default function ReportCreator() {
     dirty.current = false;
     setSaveStatus("saving");
     try {
-      await storage.saveReport(id, { name: reportName, items });
+      await storage.saveReport(id, { name: reportName, items, attendees });
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus(""), 2000);
     } catch {
       setSaveStatus("");
     }
-  }, [id, reportName, items, loaded]);
+  }, [id, reportName, items, attendees, loaded]);
 
   // === שמירה אוטומטית כל 5 שניות ===
   useEffect(() => {
@@ -156,6 +158,7 @@ export default function ReportCreator() {
         id,
         name: reportName,
         items,
+        attendees: attendees.filter(Boolean),
         createdAt: existing?.createdAt || new Date().toISOString(),
       };
       await generateExcel(reportData);
@@ -222,6 +225,48 @@ export default function ReportCreator() {
       {/* לוגו */}
       <div className="bg-navy-700 text-white text-center py-2 rounded-xl mb-5 text-sm font-medium tracking-wider">
         SPIVAK ENGINEERING
+      </div>
+
+      {/* נוכחים */}
+      <div className="mb-5" dir="rtl">
+        <h3 className="text-sm font-semibold text-navy-900 mb-2">נוכחים</h3>
+        <div className="space-y-2">
+          {attendees.map((name, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  const next = [...attendees];
+                  next[i] = e.target.value;
+                  setAttendees(next);
+                }}
+                placeholder="שם נוכח"
+                className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-base
+                           focus:outline-none focus:ring-2 focus:ring-navy-600"
+              />
+              <button
+                type="button"
+                onClick={() => setAttendees((prev) => prev.filter((_, j) => j !== i))}
+                disabled={attendees.length <= 2}
+                className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50
+                           disabled:opacity-0 disabled:pointer-events-none transition-colors"
+                aria-label="הסר נוכח"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setAttendees((prev) => [...prev, ""])}
+          className="mt-2 flex items-center gap-1.5 text-sm text-navy-700 font-medium
+                     hover:text-navy-900 transition-colors"
+        >
+          <Plus size={16} />
+          הוסף נוכח
+        </button>
       </div>
 
       {/* חיפוש ליקויים */}
