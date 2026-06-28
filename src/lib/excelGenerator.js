@@ -88,8 +88,6 @@ async function buildExcelBlob(report) {
   const items = report.items || [];
 
   // מידות התא של עמודות התמונה (לפי width=35 ו-height=120)
-  const IMG_MARGIN_X = 2;
-  const IMG_MARGIN_Y = 10;
   const IMG_CELL_W = 35 * 7 + 5;
   const IMG_CELL_H = Math.round(120 * 4 / 3);
 
@@ -97,19 +95,27 @@ async function buildExcelBlob(report) {
     const size = await getImageSize(dataUrl);
     const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
     const imageId = workbook.addImage({ base64, extension: "png" });
-    const availW = IMG_CELL_W - 2 * IMG_MARGIN_X;
-    const availH = IMG_CELL_H - 2 * IMG_MARGIN_Y;
+
+    const MARGIN = 2; // פיקסלים מינימליים בכל צד
+    const availW = IMG_CELL_W - 2 * MARGIN;
+    const availH = IMG_CELL_H - 2 * MARGIN;
+
     let drawW = availW, drawH = availH;
     if (size && size.w && size.h) {
       const scale = Math.min(availW / size.w, availH / size.h);
-      drawW = Math.round(size.w * scale);
-      drawH = Math.round(size.h * scale);
+      drawW = size.w * scale;
+      drawH = size.h * scale;
     }
-    const offX = (IMG_CELL_W - drawW) / 2;
-    const offY = (IMG_CELL_H - drawH) / 2;
+
+    // מיקום יחסי (אחוז מהתא) -> מרכוז אמיתי בשני הצירים, ללא תלות בפיקסלים מוחלטים
+    const fracLeft   = (IMG_CELL_W - drawW) / 2 / IMG_CELL_W;
+    const fracRight  = (IMG_CELL_W + drawW) / 2 / IMG_CELL_W;
+    const fracTop    = (IMG_CELL_H - drawH) / 2 / IMG_CELL_H;
+    const fracBottom = (IMG_CELL_H + drawH) / 2 / IMG_CELL_H;
+
     ws.addImage(imageId, {
-      tl: { col: colIndex + offX / IMG_CELL_W, row: rowIndex + offY / IMG_CELL_H },
-      ext: { width: drawW, height: drawH },
+      tl: { col: colIndex + fracLeft, row: rowIndex + fracTop },
+      br: { col: colIndex + fracRight, row: rowIndex + fracBottom },
       editAs: "oneCell",
     });
   }
