@@ -283,7 +283,11 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
             </div>
 
             <button
-              onClick={() => onRemove(index)}
+              onClick={() => {
+                if (window.confirm("למחוק את הליקוי? פעולה זו אינה הפיכה.")) {
+                  onRemove(index);
+                }
+              }}
               className="flex items-center gap-1.5 text-sm text-danger/70 hover:text-danger mt-2"
             >
               <Trash2 size={14} />
