@@ -87,35 +87,28 @@ async function buildExcelBlob(report) {
   // === שורות נתונים ===
   const items = report.items || [];
 
-  // מידות התא של עמודות התמונה (לפי width=35 ו-height=120)
-  const IMG_CELL_W = 35 * 7 + 5;
-  const IMG_CELL_H = Math.round(120 * 4 / 3);
+  const COL_W = 35 * 7 + 5;   // רוחב תא תמונה בפיקסלים (לפי width=35)
+  const MARGIN = 2;           // שוליים מינימליים בכל צד (פיקסלים)
+  const MAX_IMG_H = 200;      // גובה תמונה מירבי כדי למנוע שורות ענקיות
 
-  async function placeImage(dataUrl, colIndex, rowIndex) {
-    const size = await getImageSize(dataUrl);
+  async function measure(dataUrl) {
+    const s = await getImageSize(dataUrl);
+    const availW = COL_W - 2 * MARGIN;
+    if (s && s.w && s.h) {
+      const scale = Math.min(availW / s.w, MAX_IMG_H / s.h);
+      return { drawW: s.w * scale, drawH: s.h * scale };
+    }
+    return { drawW: availW, drawH: MAX_IMG_H };
+  }
+
+  function addFitted(dataUrl, colIndex, drawW, drawH, rowIndex, rowHpx) {
     const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
     const imageId = workbook.addImage({ base64, extension: "png" });
-
-    const MARGIN = 2; // פיקסלים מינימליים בכל צד
-    const availW = IMG_CELL_W - 2 * MARGIN;
-    const availH = IMG_CELL_H - 2 * MARGIN;
-
-    let drawW = availW, drawH = availH;
-    if (size && size.w && size.h) {
-      const scale = Math.min(availW / size.w, availH / size.h);
-      drawW = size.w * scale;
-      drawH = size.h * scale;
-    }
-
-    // מיקום יחסי (אחוז מהתא) -> מרכוז אמיתי בשני הצירים, ללא תלות בפיקסלים מוחלטים
-    const fracLeft   = (IMG_CELL_W - drawW) / 2 / IMG_CELL_W;
-    const fracRight  = (IMG_CELL_W + drawW) / 2 / IMG_CELL_W;
-    const fracTop    = (IMG_CELL_H - drawH) / 2 / IMG_CELL_H;
-    const fracBottom = (IMG_CELL_H + drawH) / 2 / IMG_CELL_H;
-
+    const offX = (COL_W - drawW) / 2;     // מרכוז אופקי
+    const offY = (rowHpx - drawH) / 2;    // מרכוז אנכי
     ws.addImage(imageId, {
-      tl: { col: colIndex + fracLeft, row: rowIndex + fracTop },
-      br: { col: colIndex + fracRight, row: rowIndex + fracBottom },
+      tl: { col: colIndex + offX / COL_W, row: rowIndex + offY / rowHpx },
+      ext: { width: drawW, height: drawH },
       editAs: "oneCell",
     });
   }
@@ -150,35 +143,23 @@ async function buildExcelBlob(report) {
       if (!cell.font?.bold) cell.font = { size: 10 };
     }
 
-    // === הטמעת תמונת ליקוי (עמודה 5) ===
-    const imgData = item.image_marked || item.image_original;
-    let rowHeight = 30;
+    const defectUrl = item.image_marked || item.image_original;
+    const afterUrl = item.image_after_fix;
 
-    if (imgData) {
-      try {
-        await placeImage(imgData, 4, rowNum - 1);
-        rowHeight = 120;
-      } catch {
-        row.getCell(5).value = "שגיאה בתמונה";
-      }
-    } else {
-      row.getCell(5).value = "—";
-    }
+    let mDefect = null, mAfter = null;
+    if (defectUrl) { try { mDefect = await measure(defectUrl); } catch { row.getCell(5).value = "שגיאה בתמונה"; } }
+    if (afterUrl)  { try { mAfter  = await measure(afterUrl);  } catch { row.getCell(6).value = "שגיאה בתמונה"; } }
 
-    // === הטמעת תמונה לאחר תיקון (עמודה 6) ===
-    const imgAfter = item.image_after_fix;
-    if (imgAfter) {
-      try {
-        await placeImage(imgAfter, 5, rowNum - 1);
-        rowHeight = Math.max(rowHeight, 120);
-      } catch {
-        row.getCell(6).value = "שגיאה בתמונה";
-      }
-    } else {
-      row.getCell(6).value = "—";
-    }
+    const maxDrawH = Math.max(mDefect?.drawH || 0, mAfter?.drawH || 0);
+    const rowHpx = maxDrawH > 0 ? maxDrawH + 2 * MARGIN : 40;
 
-    row.height = rowHeight;
+    if (mDefect) addFitted(defectUrl, 4, mDefect.drawW, mDefect.drawH, rowNum - 1, rowHpx);
+    else row.getCell(5).value = "—";
+
+    if (mAfter) addFitted(afterUrl, 5, mAfter.drawW, mAfter.drawH, rowNum - 1, rowHpx);
+    else row.getCell(6).value = "—";
+
+    row.height = rowHpx * 0.75;   // המרת פיקסלים לנקודות (גובה שורה באקסל)
   }
 
   // AutoFilter על כל הטבלה (כותרת + שורות נתונים) — מיון/סינון לפי כל עמודה
