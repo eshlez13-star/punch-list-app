@@ -26,6 +26,19 @@ export const DEFECT_TEMPLATES = [
   "חיבור / קיבוע לקוי",
 ];
 
+export const SAFETY_TEMPLATES = [
+  "חוסר בציוד מגן אישי",
+  "מעקה בטיחות חסר",
+  "סולם פגום / לא תקני",
+  "פיגום לא תקני",
+  "פתח לא מגודר",
+  "חוסר שילוט בטיחות",
+  "כבל חשמל חשוף",
+  "חסימת דרך מילוט",
+];
+
+export const RECURRING_NOTE = "הערה חוזרת מליקויים קודמים";
+
 export const RESP_LABELS = {
   project_manager: "מנהל פרויקט",
   contractor: "קבלן ראשי",

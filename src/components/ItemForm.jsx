@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { STRUCTURES, RESPONSIBILITIES, DEFECT_TEMPLATES } from "../lib/constants";
+import { STRUCTURES, RESPONSIBILITIES, DEFECT_TEMPLATES, SAFETY_TEMPLATES, RECURRING_NOTE } from "../lib/constants";
 import { compressImage } from "../lib/imageCompressor";
 import { Camera, FolderOpen, X, Pencil, ChevronDown, ChevronUp, Trash2, CheckCheck } from "lucide-react";
 import CanvasMarkup from "./CanvasMarkup";
@@ -260,6 +260,24 @@ export default function ItemForm({ item, index, onChange, onRemove }) {
                     {tpl}
                   </button>
                 ))}
+              </div>
+              {/* כפתורי בטיחות + הערה חוזרת */}
+              <div className="flex gap-1.5 flex-wrap mb-2">
+                {SAFETY_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl}
+                    onClick={() => update("description", item.description ? `${item.description}, ${tpl}` : tpl)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors bg-amber-50 text-amber-700 border-amber-300 hover:border-amber-500 hover:bg-amber-100"
+                  >
+                    {tpl}
+                  </button>
+                ))}
+                <button
+                  onClick={() => update("description", item.description ? `${item.description}, ${RECURRING_NOTE}` : RECURRING_NOTE)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors bg-orange-100 text-orange-800 border-orange-400 hover:bg-orange-200"
+                >
+                  {RECURRING_NOTE}
+                </button>
               </div>
               <textarea
                 value={item.description}
