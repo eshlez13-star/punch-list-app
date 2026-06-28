@@ -11,7 +11,7 @@ async function buildExcelBlob(report) {
   workbook.creator = "Spivak Engineering";
 
   const ws = workbook.addWorksheet("דוח ליקויים", {
-    views: [{ rightToLeft: true }],
+    views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }],
   });
 
   // === רוחב עמודות (9 עמודות - כולל תמונה לאחר תיקון) ===
@@ -74,6 +74,9 @@ async function buildExcelBlob(report) {
     cell.border = cellBorder;
   });
   headerRow.height = 28;
+
+  // AutoFilter על שורת הכותרת — מאפשר מיון/סינון לפי כל עמודה
+  ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: 9 } };
 
   // === שורות נתונים ===
   const items = report.items || [];
