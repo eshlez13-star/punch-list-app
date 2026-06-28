@@ -1,6 +1,8 @@
 import ExcelJS from "exceljs";
 import { RESP_LABELS } from "./constants";
 
+const IMG_PAD = 0.04;
+
 /**
  * יוצר קובץ אקסל מקצועי עם תמונות מוטמעות בתוך התאים.
  * רץ לגמרי בדפדפן - בלי שרת.
@@ -117,8 +119,8 @@ async function buildExcelBlob(report) {
         const base64 = imgData.includes(",") ? imgData.split(",")[1] : imgData;
         const imageId = workbook.addImage({ base64, extension: "png" });
         ws.addImage(imageId, {
-          tl: { col: 4, row: rowNum - 1 },
-          br: { col: 5, row: rowNum },
+          tl: { col: 4 + IMG_PAD, row: (rowNum - 1) + IMG_PAD },
+          br: { col: 5 - IMG_PAD, row: rowNum - IMG_PAD },
           editAs: "oneCell",
         });
         rowHeight = 120;
@@ -136,8 +138,8 @@ async function buildExcelBlob(report) {
         const base64After = imgAfter.includes(",") ? imgAfter.split(",")[1] : imgAfter;
         const imageIdAfter = workbook.addImage({ base64: base64After, extension: "png" });
         ws.addImage(imageIdAfter, {
-          tl: { col: 5, row: rowNum - 1 },
-          br: { col: 6, row: rowNum },
+          tl: { col: 5 + IMG_PAD, row: (rowNum - 1) + IMG_PAD },
+          br: { col: 6 - IMG_PAD, row: rowNum - IMG_PAD },
           editAs: "oneCell",
         });
         rowHeight = Math.max(rowHeight, 120);
